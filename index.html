@@ -1053,7 +1053,7 @@
 
         refreshMobileCamera() {
           if (!this.cameras || !this.cameras.main) return;
-          const zoom = this.isMobile ? (IS_PORTRAIT() ? 0.78 : 0.9) : 1.03;
+          const zoom = this.isMobile ? (IS_PORTRAIT() ? 0.88 : 0.96) : 1.03;
           this.cameras.main.setZoom(zoom);
         }
 
@@ -1383,7 +1383,7 @@
             .setDepth(93);
 
           this.rainDrops = [];
-          const rainCount = this.isMobile ? 140 : 220;
+          const rainCount = this.isMobile ? 80 : 220;
           for (let i = 0; i < rainCount; i += 1) {
             this.rainDrops.push({
               x: Math.random() * GAME_W,
@@ -1652,14 +1652,16 @@
         }
 
         spawnBurst(x, y, palette, count, speed) {
-          for (let i = 0; i < count; i += 1) {
-            const angle = (Math.PI * 2 * i) / count + Math.random() * 0.4;
+          const burstCount = this.isMobile ? Math.max(4, Math.round(count * 0.55)) : count;
+          const burstSpeed = this.isMobile ? speed * 0.82 : speed;
+          for (let i = 0; i < burstCount; i += 1) {
+            const angle = (Math.PI * 2 * i) / burstCount + Math.random() * 0.4;
             this.spawnParticle(
               x + Phaser.Math.Between(-10, 10),
               y + Phaser.Math.Between(-12, 12),
               palette[i % palette.length],
               angle,
-              24 + Math.random() * speed,
+              24 + Math.random() * burstSpeed,
               0.5 + Math.random() * 1.6,
               280 + Math.random() * 220
             );
@@ -1729,10 +1731,10 @@
         performDash() {
           if (this.time.now < this.state.dashReadyAt || this.state.dead || this.state.cleared) return;
           const facing = this.player.flipX ? -1 : 1;
-          this.state.dashReadyAt = this.time.now + 820;
+          this.state.dashReadyAt = this.time.now + (this.isMobile ? 680 : 820);
           this.state.dashEndAt = this.time.now + 180;
           this.player.body.allowGravity = false;
-          this.player.setVelocity(facing * 760, 0);
+          this.player.setVelocity(facing * (this.isMobile ? 900 : 760), 0);
           this.flash("#58f6ff", 0.12, 160);
           this.spawnSlashWave(this.player.x, this.player.y, COLORS.cyan, 1.5);
           this.spawnBurst(this.player.x, this.player.y, [COLORS.cyan, COLORS.violet], 18, 200);
@@ -1790,9 +1792,10 @@
 
           if (now > this.state.dashEndAt) {
             let targetSpeed = 0;
-            if (left) targetSpeed = -280;
-            if (right) targetSpeed = 280;
-            this.player.setVelocityX(Phaser.Math.Linear(this.player.body.velocity.x, targetSpeed, grounded ? 0.24 : 0.12));
+            const runSpeed = this.isMobile ? 360 : 280;
+            if (left) targetSpeed = -runSpeed;
+            if (right) targetSpeed = runSpeed;
+            this.player.setVelocityX(Phaser.Math.Linear(this.player.body.velocity.x, targetSpeed, grounded ? 0.3 : 0.16));
           } else if (now - this.state.lastTrailAt > 24) {
             this.state.lastTrailAt = now;
             const ghost = this.add.image(this.player.x, this.player.y, "player")
@@ -1901,18 +1904,21 @@
 
         drawOverlays() {
           this.scanlines.clear();
-          this.scanlines.fillStyle(0xffffff, 0.022);
-          for (let y = 0; y < GAME_H; y += 4) {
-            this.scanlines.fillRect(0, y, GAME_W, 1);
+          if (!this.isMobile) {
+            this.scanlines.fillStyle(0xffffff, 0.022);
+            for (let y = 0; y < GAME_H; y += 4) {
+              this.scanlines.fillRect(0, y, GAME_W, 1);
+            }
           }
 
           this.glitchGraphics.clear();
-          this.state.glitch = Math.max(0, this.state.glitch - 0.035);
-          if (this.state.glitch > 0.02 || Math.random() > 0.985) {
-            for (let i = 0; i < 3; i += 1) {
+          this.state.glitch = Math.max(0, this.state.glitch - (this.isMobile ? 0.06 : 0.035));
+          if (this.state.glitch > 0.03 || (!this.isMobile && Math.random() > 0.985)) {
+            const glitchBars = this.isMobile ? 1 : 3;
+            for (let i = 0; i < glitchBars; i += 1) {
               const y = Phaser.Math.Between(0, GAME_H - 24);
               const height = Phaser.Math.Between(8, 26);
-              const alpha = 0.06 + this.state.glitch * 0.18;
+              const alpha = (this.isMobile ? 0.03 : 0.06) + this.state.glitch * (this.isMobile ? 0.1 : 0.18);
               this.glitchGraphics.fillStyle(i % 2 ? COLORS.magenta : COLORS.cyan, alpha);
               this.glitchGraphics.fillRect(0, y, GAME_W, height);
             }
