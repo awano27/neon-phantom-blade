@@ -1014,6 +1014,7 @@
           this.cores = this.physics.add.group({ allowGravity: false, immovable: true });
           this.hazards = this.physics.add.staticGroup();
           this.checkpoints = [];
+          this.worldMarkers = [];
 
           this.buildBackdrop();
           this.buildStage();
@@ -1022,6 +1023,7 @@
           this.createOverlays();
           this.setupCollisions();
           this.setupInput();
+          this.pulseBanner("みどりは とる! ピンクは てき!", "#9cff4d");
           this.handleViewportChange = () => this.refreshMobileCamera();
           window.addEventListener("resize", this.handleViewportChange);
           window.addEventListener("orientationchange", this.handleViewportChange);
@@ -1147,6 +1149,7 @@
             core.setDepth(12);
             core.setTint(tint);
             addGlow(core, tint, 12, 0, 12);
+            this.attachWorldMarker(core, "コア", "#9cff4d", COLORS.lime, -38, 26);
             this.tweens.add({
               targets: core,
               y: y - 10,
@@ -1213,6 +1216,7 @@
               phase: Math.random() * Math.PI * 2
             });
             addGlow(drone, COLORS.magenta, 12, 0, 16);
+            this.attachWorldMarker(drone, "てき", "#ff7adf", COLORS.magenta, -46, 28);
           };
 
           const addRobot = (x, y, range) => {
@@ -1229,6 +1233,7 @@
               originX: x
             });
             addGlow(robot, COLORS.lime, 10, 0, 14);
+            this.attachWorldMarker(robot, "てき", "#ff7adf", COLORS.magenta, -68, 28);
           };
 
           addPlatform(270, 800, 760, 56, COLORS.cyan);
@@ -1291,12 +1296,14 @@
             originX: 5300,
             dashAt: 0
           });
+          this.attachWorldMarker(this.finalBoss, "ボス", "#fff3a6", COLORS.magenta, -108, 30);
           this.finalBoss.disableBody(true, true);
 
           this.portal = this.physics.add.staticSprite(5480, 650, "portal");
           this.portal.setDepth(18);
           addGlow(this.portal, COLORS.cyan, 18, 0, 24);
           this.portal.setAlpha(0.35);
+          this.portalMarker = this.attachWorldMarker(this.portal, "ロック", "#ff7adf", COLORS.magenta, -90, 28);
           this.tweens.add({
             targets: this.portal,
             scale: 1.08,
@@ -1584,6 +1591,10 @@
               this.state.portalLocked = false;
               this.portal.setAlpha(1);
               this.portal.setTint(COLORS.lime);
+              if (this.portalMarker) {
+                this.portalMarker.setText("ゴール");
+                this.portalMarker.setColor("#9cff4d");
+              }
               addGlow(this.portal, COLORS.lime, 22, 0, 28);
               this.bossBarBg.setVisible(false);
               this.bossBarFill.setVisible(false);
@@ -1697,6 +1708,29 @@
           }
         }
 
+        attachWorldMarker(target, text, color, glowColor, yOffset, depth = 24) {
+          const marker = this.add.text(target.x, target.y + yOffset, text, {
+            fontFamily: '"Zen Kaku Gothic New"',
+            fontSize: "16px",
+            fontStyle: "900",
+            color,
+            backgroundColor: "rgba(8, 12, 24, 0.75)",
+            padding: { left: 8, right: 8, top: 3, bottom: 3 }
+          }).setOrigin(0.5).setDepth(depth);
+          addGlow(marker, glowColor, 8, 0, 8);
+          this.worldMarkers.push({ target, marker, yOffset });
+          return marker;
+        }
+
+        updateWorldMarkers() {
+          for (const entry of this.worldMarkers) {
+            const visible = !!entry.target && entry.target.active !== false && entry.target.visible !== false;
+            entry.marker.setVisible(visible);
+            if (!visible) continue;
+            entry.marker.setPosition(entry.target.x, entry.target.y + entry.yOffset);
+          }
+        }
+
         getAttackDamage() {
           return this.state.bladeLevel >= 3 ? 3 : (this.state.bladeLevel >= 2 ? 2 : 1);
         }
@@ -1724,6 +1758,10 @@
           this.state.bossAwakened = true;
           this.finalBoss.enableBody(false, 5300, 684, true, true);
           this.finalBoss.setTint(COLORS.magenta);
+          if (this.portalMarker) {
+            this.portalMarker.setText("ボスを たおせ");
+            this.portalMarker.setColor("#ff7adf");
+          }
           addGlow(this.finalBoss, COLORS.magenta, 16, 0, 20);
           this.bossBarBg.setVisible(true);
           this.bossBarFill.setVisible(true);
@@ -2097,6 +2135,7 @@
           this.updateBackdrop();
           this.updateEnemies(time);
           this.updatePlayer();
+          this.updateWorldMarkers();
           this.drawRain();
           this.drawOverlays();
           this.updateUi();
