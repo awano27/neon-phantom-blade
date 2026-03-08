@@ -1001,7 +1001,11 @@
             lastTrailAt: 0,
             wasGrounded: false,
             tutorialStep: 0,
-            enemyRewardChain: 0
+            enemyRewardChain: 0,
+            bladeLevel: 1,
+            bossAwakened: false,
+            bossDefeated: false,
+            portalLocked: true
           };
 
           this.platforms = this.physics.add.staticGroup();
@@ -1272,9 +1276,27 @@
           addLaser(4700, 680, 200);
           addLaser(5330, 600, 180);
 
+          this.finalBoss = this.enemies.create(5300, 684, "robot");
+          this.finalBoss.setDepth(22);
+          this.finalBoss.setScale(1.7);
+          this.finalBoss.body.setSize(44, 92);
+          this.finalBoss.body.setOffset(26, 12);
+          this.finalBoss.setDataEnabled();
+          this.finalBoss.data.set({
+            type: "boss",
+            hp: 12,
+            maxHp: 12,
+            range: 180,
+            dir: -1,
+            originX: 5300,
+            dashAt: 0
+          });
+          this.finalBoss.disableBody(true, true);
+
           this.portal = this.physics.add.staticSprite(5480, 650, "portal");
           this.portal.setDepth(18);
           addGlow(this.portal, COLORS.cyan, 18, 0, 24);
+          this.portal.setAlpha(0.35);
           this.tweens.add({
             targets: this.portal,
             scale: 1.08,
@@ -1328,6 +1350,14 @@
           }).setScrollFactor(0).setDepth(100);
           addGlow(this.uiMission, COLORS.cyan, 8, 0, 8);
 
+          this.uiBlade = this.add.text(24, 114, "ブレード Lv.1", {
+            fontFamily: '"Zen Kaku Gothic New"',
+            fontSize: "18px",
+            fontStyle: "900",
+            color: "#ff38d1"
+          }).setScrollFactor(0).setDepth(100);
+          addGlow(this.uiBlade, COLORS.magenta, 8, 0, 8);
+
           this.uiHint = this.add.text(GAME_W / 2, 18, "ネオンシティ を かけぬけろ", {
             fontFamily: '"Zen Kaku Gothic New"',
             fontSize: "26px",
@@ -1363,6 +1393,28 @@
             fontStyle: "700",
             color: "#d7efff"
           }).setOrigin(0, 0).setScrollFactor(0).setDepth(101);
+
+          this.bossBarBg = this.add.rectangle(GAME_W / 2, 74, 420, 18, 0x090d17, 0.9)
+            .setScrollFactor(0)
+            .setDepth(101)
+            .setVisible(false);
+          this.bossBarBg.setStrokeStyle(2, COLORS.magenta, 0.7);
+          addGlow(this.bossBarBg, COLORS.magenta, 10, 0, 10);
+
+          this.bossBarFill = this.add.rectangle(GAME_W / 2 - 206, 74, 408, 10, COLORS.magenta, 0.95)
+            .setOrigin(0, 0.5)
+            .setScrollFactor(0)
+            .setDepth(102)
+            .setVisible(false);
+          addGlow(this.bossBarFill, COLORS.magenta, 10, 0, 10);
+
+          this.bossLabel = this.add.text(GAME_W / 2, 40, "ボス: ネオン タイタン", {
+            fontFamily: '"Zen Kaku Gothic New"',
+            fontSize: "20px",
+            fontStyle: "900",
+            color: "#ff38d1"
+          }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(102).setVisible(false);
+          addGlow(this.bossLabel, COLORS.magenta, 10, 0, 10);
 
           this.banner = this.add.text(GAME_W / 2, 110, "", {
             fontFamily: '"Zen Kaku Gothic New"',
@@ -1426,6 +1478,12 @@
                 this.showFloatingText(this.player.x, this.player.y - 80, "ボーナス +300", "#58f6ff", 26);
               }
             }
+            if (this.state.cores >= 10) {
+              this.unlockBladeLevel(2);
+            }
+            if (this.state.cores >= 16) {
+              this.unlockBladeLevel(3);
+            }
           });
 
           this.physics.add.overlap(this.player, this.hazards, () => {
@@ -1435,7 +1493,7 @@
           this.physics.add.overlap(this.player, this.enemies, (_player, enemy) => {
             if (!enemy.active || this.state.dead) return;
             if (this.time.now < this.state.dashEndAt) {
-              this.hitEnemy(enemy, 2, true);
+              this.hitEnemy(enemy, this.state.bladeLevel >= 2 ? 3 : 2, true);
               return;
             }
             this.takeDamage(enemy.getData("type"));
@@ -1443,7 +1501,7 @@
 
           this.physics.add.overlap(this.attackZone, this.enemies, (_zone, enemy) => {
             if (!enemy.active || !this.attackZone.body.enable) return;
-            this.hitEnemy(enemy, 1, false);
+            this.hitEnemy(enemy, this.getAttackDamage(), false);
           });
 
           for (const checkpoint of this.checkpoints) {
@@ -1462,6 +1520,13 @@
 
           this.physics.add.overlap(this.player, this.portal, () => {
             if (this.state.cleared || this.state.dead) return;
+            if (this.state.portalLocked) {
+              this.pulseBanner("ポータルが ロック されている!", "#ff38d1");
+              if (!this.state.bossAwakened) {
+                this.awakenFinalBoss();
+              }
+              return;
+            }
             this.state.cleared = true;
             this.physics.pause();
             this.cameras.main.shake(260, 0.008);
@@ -1479,9 +1544,10 @@
 
         hitEnemy(enemy, damage, fromDash) {
           if (!enemy.active || enemy.getData("dead")) return;
+          const type = enemy.getData("type");
           const hp = enemy.getData("hp") - damage;
           enemy.setData("hp", hp);
-          enemy.setTint(fromDash ? COLORS.cyan : COLORS.magenta);
+          enemy.setTint(type === "boss" ? COLORS.lime : (fromDash ? COLORS.cyan : COLORS.magenta));
           this.time.delayedCall(70, () => {
             if (enemy.active) {
               enemy.clearTint();
@@ -1493,24 +1559,39 @@
           this.state.comboTimer = this.time.now + 1800;
           this.state.score += 150;
           this.pulseCombo();
-          this.freezeFrame(46);
+          this.freezeFrame(type === "boss" ? 32 : 46);
           this.cameras.main.shake(110, fromDash ? 0.007 : 0.005);
           this.state.glitch = 1;
-          this.spawnBurst(enemy.x, enemy.y, [COLORS.cyan, COLORS.magenta, COLORS.lime], fromDash ? 28 : 18, fromDash ? 230 : 180);
-          this.spawnSlashWave(enemy.x, enemy.y, fromDash ? COLORS.cyan : COLORS.magenta, 1.35);
+          this.spawnBurst(enemy.x, enemy.y, [COLORS.cyan, COLORS.magenta, COLORS.lime], fromDash ? 28 : (type === "boss" ? 22 : 18), fromDash ? 230 : 180);
+          this.spawnSlashWave(enemy.x, enemy.y, type === "boss" ? COLORS.lime : (fromDash ? COLORS.cyan : COLORS.magenta), type === "boss" ? 1.8 : 1.35);
+          if (type === "boss") {
+            this.showFloatingText(enemy.x, enemy.y - 72, `-${damage}`, "#9cff4d", 26);
+          }
 
           if (hp <= 0) {
             enemy.setData("dead", true);
             this.state.enemyRewardChain += 1;
-            this.state.score += 100;
-            this.showFloatingText(enemy.x, enemy.y - 44, "ナイス!", "#58f6ff", 22);
+            this.state.score += type === "boss" ? 2000 : 100;
+            this.showFloatingText(enemy.x, enemy.y - 44, type === "boss" ? "ボス げきは!" : "ナイス!", type === "boss" ? "#9cff4d" : "#58f6ff", type === "boss" ? 30 : 22);
             audio.playExplosion();
             this.time.delayedCall(10, () => {
               if (!enemy.active) return;
               this.spawnExplosion(enemy.x, enemy.y);
               enemy.disableBody(true, true);
             });
-            if (this.state.enemyRewardChain % 3 === 0 && this.state.lives < this.state.maxLives) {
+            if (type === "boss") {
+              this.state.bossDefeated = true;
+              this.state.portalLocked = false;
+              this.portal.setAlpha(1);
+              this.portal.setTint(COLORS.lime);
+              addGlow(this.portal, COLORS.lime, 22, 0, 28);
+              this.bossBarBg.setVisible(false);
+              this.bossBarFill.setVisible(false);
+              this.bossLabel.setVisible(false);
+              this.pulseBanner("ポータル かいほう!", "#9cff4d");
+              this.showFloatingText(this.portal.x, this.portal.y - 110, "ゴールへ すすめ!", "#58f6ff", 28);
+              this.spawnBurst(this.portal.x, this.portal.y, [COLORS.lime, COLORS.cyan, COLORS.magenta], 40, 260);
+            } else if (this.state.enemyRewardChain % 3 === 0 && this.state.lives < this.state.maxLives) {
               this.state.lives += 1;
               this.pulseBanner("れんしょう ボーナス!", "#9cff4d");
               this.showFloatingText(this.player.x, this.player.y - 90, "ライフ +1", "#9cff4d", 28);
@@ -1616,6 +1697,43 @@
           }
         }
 
+        getAttackDamage() {
+          return this.state.bladeLevel >= 3 ? 3 : (this.state.bladeLevel >= 2 ? 2 : 1);
+        }
+
+        unlockBladeLevel(level) {
+          if (this.state.bladeLevel >= level) return;
+          this.state.bladeLevel = level;
+          if (level === 2) {
+            this.state.score += 750;
+            this.pulseBanner("サンダー ブレード かいほう!", "#58f6ff");
+            this.showFloatingText(this.player.x, this.player.y - 96, "こうげきUP!", "#58f6ff", 28);
+            this.spawnBurst(this.player.x, this.player.y - 20, [COLORS.cyan, COLORS.magenta, COLORS.lime], 30, 220);
+          } else if (level === 3) {
+            this.state.score += 1200;
+            this.state.maxLives += 1;
+            this.state.lives = Math.min(this.state.maxLives, this.state.lives + 1);
+            this.pulseBanner("ファントム ブレード しんか!", "#ff38d1");
+            this.showFloatingText(this.player.x, this.player.y - 96, "さいきょう モード!", "#ff38d1", 28);
+            this.flash("#ff38d1", 0.18, 260);
+          }
+        }
+
+        awakenFinalBoss() {
+          if (this.state.bossAwakened || this.state.bossDefeated || !this.finalBoss) return;
+          this.state.bossAwakened = true;
+          this.finalBoss.enableBody(false, 5300, 684, true, true);
+          this.finalBoss.setTint(COLORS.magenta);
+          addGlow(this.finalBoss, COLORS.magenta, 16, 0, 20);
+          this.bossBarBg.setVisible(true);
+          this.bossBarFill.setVisible(true);
+          this.bossLabel.setVisible(true);
+          this.pulseBanner("ボス しゅつげん! ネオン タイタン!", "#ff38d1");
+          this.flash("#ff38d1", 0.16, 260);
+          this.cameras.main.shake(260, 0.009);
+          this.spawnExplosion(this.finalBoss.x, this.finalBoss.y);
+        }
+
         showFloatingText(x, y, text, color = "#ffffff", fontSize = 24) {
           const label = this.add.text(x, y, text, {
             fontFamily: '"Zen Kaku Gothic New"',
@@ -1700,16 +1818,16 @@
 
         performAttack() {
           if (this.time.now < this.state.attackReadyAt || this.state.dead || this.state.cleared) return;
-          this.state.attackReadyAt = this.time.now + 250;
+          this.state.attackReadyAt = this.time.now + (this.state.bladeLevel >= 2 ? 210 : 250);
           this.state.attackActiveUntil = this.time.now + 110;
           const facing = this.player.flipX ? -1 : 1;
           const slashX = this.player.x + facing * 48;
           const slash = this.add.image(slashX, this.player.y - 10, "slash")
             .setDepth(31)
-            .setTint(facing > 0 ? COLORS.cyan : COLORS.magenta)
-            .setScale(facing > 0 ? 1 : -1, 1);
+            .setTint(this.state.bladeLevel >= 3 ? COLORS.lime : (facing > 0 ? COLORS.cyan : COLORS.magenta))
+            .setScale(facing > 0 ? (this.state.bladeLevel >= 2 ? 1.2 : 1) : -(this.state.bladeLevel >= 2 ? 1.2 : 1), this.state.bladeLevel >= 2 ? 1.12 : 1);
           slash.setBlendMode(Phaser.BlendModes.ADD);
-          addGlow(slash, COLORS.cyan, 18, 0, 20);
+          addGlow(slash, this.state.bladeLevel >= 3 ? COLORS.lime : COLORS.cyan, 18, 0, 20);
           this.tweens.add({
             targets: slash,
             alpha: 0,
@@ -1723,9 +1841,9 @@
 
           this.attackZone.body.enable = true;
           this.attackZone.setPosition(this.player.x + facing * 64, this.player.y - 6);
-          this.attackZone.body.setSize(110, 66);
+          this.attackZone.body.setSize(this.state.bladeLevel >= 2 ? 132 : 110, this.state.bladeLevel >= 2 ? 74 : 66);
           audio.playAttack();
-          this.spawnBurst(this.player.x + facing * 34, this.player.y - 12, [COLORS.cyan, COLORS.magenta], 12, 120);
+          this.spawnBurst(this.player.x + facing * 34, this.player.y - 12, this.state.bladeLevel >= 3 ? [COLORS.lime, COLORS.cyan, COLORS.magenta] : [COLORS.cyan, COLORS.magenta], this.state.bladeLevel >= 2 ? 18 : 12, 120);
         }
 
         performDash() {
@@ -1824,6 +1942,10 @@
           this.player.rotation = Phaser.Math.Clamp(this.player.body.velocity.x * 0.0008, -0.12, 0.12);
           this.player.alpha = this.time.now < this.state.invulnerableUntil ? (Math.sin(this.time.now * 0.04) > 0 ? 0.45 : 1) : 1;
 
+          if (!this.state.bossAwakened && this.player.x > 5050) {
+            this.awakenFinalBoss();
+          }
+
           if (this.state.tutorialStep === 0 && this.player.x > 320) {
             this.state.tutorialStep = 1;
             this.pulseBanner("ジャンプで たかい あしばへ!", "#58f6ff");
@@ -1833,6 +1955,9 @@
           } else if (this.state.tutorialStep === 2 && this.player.x > 3600) {
             this.state.tutorialStep = 3;
             this.pulseBanner("あと すこし! ゴールを めざせ!", "#9cff4d");
+          } else if (this.state.tutorialStep === 3 && this.player.x > 5000 && !this.state.bossDefeated) {
+            this.state.tutorialStep = 4;
+            this.pulseBanner("さいごは ボスを たおそう!", "#ff38d1");
           }
 
           if (this.player.y > 980) {
@@ -1856,6 +1981,20 @@
               enemy.x = nextX;
               enemy.y = enemy.getData("baseY") + Math.sin(time * 0.004 + enemy.getData("phase")) * 26;
               enemy.flipX = enemy.getData("dir") < 0;
+            } else if (type === "boss") {
+              const dir = this.player.x < enemy.x ? -1 : 1;
+              const distance = Math.abs(this.player.x - enemy.x);
+              enemy.setData("dir", dir);
+              enemy.flipX = dir < 0;
+              if (time > enemy.getData("dashAt") && distance > 90 && distance < 260) {
+                enemy.setVelocityX(dir * 180);
+                enemy.setData("dashAt", time + 1200);
+              } else {
+                enemy.setVelocityX(dir * (distance > 160 ? 86 : 48));
+              }
+              if (distance < 120 && this.player.y + 10 < enemy.y && enemy.body.blocked.down) {
+                enemy.setVelocityY(-360);
+              }
             } else {
               const dir = enemy.getData("dir");
               const originX = enemy.getData("originX");
@@ -1930,12 +2069,28 @@
           this.uiLives.setText(lifeText);
           this.uiCore.setText(`ネオンコア ${this.state.cores}   スコア ${this.state.score}`);
           const nextLifeAt = (this.state.coreMilestone + 1) * 5;
-          this.uiMission.setText(`ミッション: ポータルへ! つぎのライフ ${nextLifeAt}コア`);
+          if (!this.state.bossAwakened) {
+            this.uiMission.setText(`ミッション: ポータルへ! つぎのライフ ${nextLifeAt}コア`);
+          } else if (!this.state.bossDefeated) {
+            this.uiMission.setText("ミッション: ネオン タイタンを たおせ!");
+          } else {
+            this.uiMission.setText("ミッション: ひかる ポータルへ はいろう!");
+          }
+          this.uiBlade.setText(`ブレード Lv.${this.state.bladeLevel}`);
           this.uiCombo.setText(this.state.combo > 1 ? `${this.state.combo} HIT` : "");
-          this.uiHint.setText(this.player.x > 5000 ? "さいごの ポータルへ!" : "ネオンシティ を かけぬけろ");
+          if (this.state.bossAwakened && !this.state.bossDefeated) {
+            this.uiHint.setText("ボスを たおして ポータルを ひらけ!");
+          } else {
+            this.uiHint.setText(this.player.x > 5000 ? "さいごの ポータルへ!" : "ネオンシティ を かけぬけろ");
+          }
           const progress = Phaser.Math.Clamp((this.player.x - 180) / (this.portal.x - 180), 0, 1);
           this.progressFill.width = Math.max(8, 252 * progress);
           this.progressFill.fillColor = progress > 0.72 ? COLORS.magenta : (progress > 0.4 ? COLORS.cyan : COLORS.lime);
+          if (this.state.bossAwakened && !this.state.bossDefeated && this.finalBoss?.active) {
+            const bossRatio = Phaser.Math.Clamp(this.finalBoss.getData("hp") / this.finalBoss.getData("maxHp"), 0, 1);
+            this.bossBarFill.width = Math.max(10, 408 * bossRatio);
+            this.bossBarFill.fillColor = bossRatio < 0.35 ? COLORS.lime : COLORS.magenta;
+          }
         }
 
         update(time) {
