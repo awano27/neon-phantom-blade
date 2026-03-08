@@ -1,0 +1,9 @@
+{
+  "name": "neon-phantom-blade",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build:pages": "node scripts/build-pages.mjs"
+  }
+}

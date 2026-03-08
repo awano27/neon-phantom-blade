@@ -1,0 +1,1960 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Neon Phantom Blade</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Audiowide&family=Zen+Kaku+Gothic+New:wght@400;700;900&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #03040a;
+      --panel: rgba(8, 13, 25, 0.7);
+      --cyan: #58f6ff;
+      --violet: #8b4dff;
+      --magenta: #ff38d1;
+      --lime: #9cff4d;
+      --line: rgba(121, 238, 255, 0.34);
+      --text: #eff8ff;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      touch-action: none;
+      background:
+        radial-gradient(circle at 20% 10%, rgba(90, 246, 255, 0.16), transparent 32%),
+        radial-gradient(circle at 80% 15%, rgba(255, 56, 209, 0.15), transparent 28%),
+        linear-gradient(180deg, #050714 0%, #060a1d 34%, #020308 100%);
+      color: var(--text);
+      font-family: "Zen Kaku Gothic New", sans-serif;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.15;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+      background-size: 5px 5px, 5px 5px;
+      mix-blend-mode: screen;
+    }
+
+    #game-shell {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+      isolation: isolate;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      filter: saturate(1.18) contrast(1.04);
+    }
+
+    #boot-note {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 30;
+      padding: 9px 16px;
+      border: 1px solid rgba(88, 246, 255, 0.4);
+      border-radius: 999px;
+      background: rgba(4, 8, 18, 0.68);
+      box-shadow:
+        0 0 24px rgba(88, 246, 255, 0.25),
+        inset 0 0 12px rgba(255, 56, 209, 0.2);
+      backdrop-filter: blur(10px);
+      color: #eefbff;
+      font-size: 13px;
+      letter-spacing: 0.08em;
+      transition: opacity 180ms ease, transform 180ms ease;
+    }
+
+    #boot-note.hide {
+      opacity: 0;
+      transform: translateX(-50%) translateY(-8px);
+      pointer-events: none;
+    }
+
+    #touch-ui {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 150ms ease;
+    }
+
+    #touch-ui.show {
+      opacity: 1;
+    }
+
+    #mobile-hud {
+      position: fixed;
+      inset: 0;
+      z-index: 25;
+      pointer-events: none;
+    }
+
+    #fullscreen-btn {
+      position: absolute;
+      top: max(14px, env(safe-area-inset-top));
+      right: max(14px, env(safe-area-inset-right));
+      pointer-events: auto;
+      min-width: 92px;
+      height: 44px;
+      padding: 0 14px;
+      border: 1px solid rgba(88, 246, 255, 0.45);
+      border-radius: 999px;
+      background: rgba(4, 8, 18, 0.72);
+      color: #eefdff;
+      font-family: "Audiowide", sans-serif;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      box-shadow:
+        0 0 20px rgba(88, 246, 255, 0.22),
+        inset 0 0 12px rgba(255, 56, 209, 0.16);
+      backdrop-filter: blur(8px);
+      touch-action: manipulation;
+    }
+
+    #rotate-tip {
+      position: absolute;
+      inset: auto 16px max(118px, calc(env(safe-area-inset-bottom) + 92px)) 16px;
+      display: none;
+      padding: 14px 16px;
+      border: 1px solid rgba(156, 255, 77, 0.45);
+      border-radius: 22px;
+      background: rgba(5, 10, 20, 0.78);
+      color: #eefbff;
+      font-size: 14px;
+      line-height: 1.45;
+      text-align: center;
+      box-shadow:
+        0 0 24px rgba(156, 255, 77, 0.16),
+        inset 0 0 18px rgba(88, 246, 255, 0.12);
+      backdrop-filter: blur(10px);
+    }
+
+    #rotate-tip.show {
+      display: block;
+    }
+
+    .touch-side {
+      position: absolute;
+      bottom: max(18px, env(safe-area-inset-bottom));
+      display: flex;
+      gap: 12px;
+      pointer-events: none;
+    }
+
+    .touch-side.left {
+      left: max(18px, env(safe-area-inset-left));
+      align-items: flex-end;
+    }
+
+    .touch-side.right {
+      right: max(18px, env(safe-area-inset-right));
+      align-items: flex-end;
+    }
+
+    .touch-btn {
+      pointer-events: auto;
+      width: 78px;
+      height: 78px;
+      border: 1px solid rgba(123, 255, 235, 0.42);
+      border-radius: 24px;
+      background:
+        linear-gradient(180deg, rgba(13, 18, 38, 0.88), rgba(5, 7, 14, 0.74));
+      box-shadow:
+        0 0 24px rgba(88, 246, 255, 0.18),
+        inset 0 0 18px rgba(255, 56, 209, 0.16),
+        inset 0 1px 0 rgba(255, 255, 255, 0.12);
+      color: #f2f9ff;
+      font-family: "Audiowide", sans-serif;
+      font-size: 18px;
+      letter-spacing: 0.08em;
+      touch-action: none;
+      user-select: none;
+    }
+
+    .touch-btn:active,
+    .touch-btn.active {
+      transform: translateY(2px) scale(0.97);
+      box-shadow:
+        0 0 34px rgba(88, 246, 255, 0.34),
+        inset 0 0 24px rgba(255, 56, 209, 0.26);
+    }
+
+    .touch-btn.small {
+      width: 72px;
+      height: 72px;
+      font-size: 16px;
+    }
+
+    .touch-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .touch-stack .touch-btn {
+      pointer-events: auto;
+    }
+
+    @media (hover: none), (pointer: coarse) {
+      #touch-ui {
+        opacity: 1;
+      }
+
+      .touch-side {
+        bottom: max(20px, calc(env(safe-area-inset-bottom) + 6px));
+        gap: 14px;
+      }
+
+      .touch-btn {
+        width: 92px;
+        height: 92px;
+        border-radius: 28px;
+        font-size: 20px;
+      }
+
+      .touch-btn.small {
+        width: 84px;
+        height: 84px;
+        font-size: 17px;
+      }
+    }
+
+    @media (hover: none) and (orientation: portrait), (pointer: coarse) and (orientation: portrait) {
+      .touch-side.left {
+        left: max(12px, env(safe-area-inset-left));
+      }
+
+      .touch-side.right {
+        right: max(12px, env(safe-area-inset-right));
+      }
+
+      .touch-btn {
+        width: 86px;
+        height: 86px;
+        font-size: 18px;
+      }
+
+      .touch-btn.small {
+        width: 78px;
+        height: 78px;
+        font-size: 15px;
+      }
+
+      #rotate-tip {
+        display: block;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="game-shell"></div>
+  <div id="boot-note">タップ / クリックで おと をオン</div>
+  <div id="mobile-hud">
+    <button id="fullscreen-btn" type="button">FULL</button>
+    <div id="rotate-tip">スマホは よこもち が あそびやすいです。<br>FULL をおすと もっと見やすくなります。</div>
+  </div>
+  <div id="touch-ui">
+    <div class="touch-side left">
+      <button class="touch-btn" id="btn-left">◀</button>
+      <button class="touch-btn" id="btn-right">▶</button>
+    </div>
+    <div class="touch-side right">
+      <div class="touch-stack">
+        <button class="touch-btn small" id="btn-jump">JUMP</button>
+        <button class="touch-btn small" id="btn-dash">DASH</button>
+      </div>
+      <button class="touch-btn" id="btn-attack">SLASH</button>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.min.js"></script>
+  <script>
+    (() => {
+      "use strict";
+
+      const GAME_W = 1440;
+      const GAME_H = 900;
+      const WORLD_W = 5600;
+      const WORLD_H = 900;
+      const COLORS = {
+        cyan: 0x58f6ff,
+        violet: 0x8b4dff,
+        magenta: 0xff38d1,
+        lime: 0x9cff4d,
+        blue: 0x0d1832,
+        ink: 0x060912,
+        night: 0x050814,
+        steel: 0x131e34
+      };
+
+      const AUDIO_SOURCES = {
+        bgmPage: "https://freesound.org/people/Bertsz/sounds/524309/",
+        bgmPreview: "https://cdn.freesound.org/previews/524/524309_6714882-lq.mp3",
+        swingPage: "https://freesound.org/people/orginaljun/sounds/149102/",
+        swingPreview: "https://cdn.freesound.org/previews/149/149102_2635357-lq.mp3"
+      };
+
+      const touchState = {
+        left: false,
+        right: false,
+        jump: false,
+        dash: false,
+        attack: false,
+        justJump: false,
+        justDash: false,
+        justAttack: false
+      };
+
+      const IS_COARSE_POINTER = window.matchMedia("(hover: none), (pointer: coarse)").matches;
+      const IS_PORTRAIT = () => window.matchMedia("(orientation: portrait)").matches;
+      const touchUi = document.getElementById("touch-ui");
+      const bootNote = document.getElementById("boot-note");
+      const rotateTip = document.getElementById("rotate-tip");
+      const fullscreenBtn = document.getElementById("fullscreen-btn");
+
+      function resetTouchState() {
+        touchState.left = false;
+        touchState.right = false;
+        touchState.jump = false;
+        touchState.dash = false;
+        touchState.attack = false;
+        document.querySelectorAll(".touch-btn.active").forEach((button) => {
+          button.classList.remove("active");
+        });
+      }
+
+      function syncMobileHud() {
+        if (!rotateTip) return;
+        const showRotate = IS_COARSE_POINTER && IS_PORTRAIT();
+        rotateTip.classList.toggle("show", showRotate);
+      }
+
+      function bindTouchButton(id, key, edgeKey) {
+        const button = document.getElementById(id);
+        if (!button) return;
+        const press = (event) => {
+          event.preventDefault();
+          touchState[key] = true;
+          if (edgeKey) {
+            touchState[edgeKey] = true;
+          }
+          button.classList.add("active");
+        };
+        const release = (event) => {
+          if (event) event.preventDefault();
+          touchState[key] = false;
+          button.classList.remove("active");
+        };
+        button.addEventListener("pointerdown", press);
+        button.addEventListener("pointerup", release);
+        button.addEventListener("pointercancel", release);
+        button.addEventListener("pointerleave", release);
+        button.addEventListener("contextmenu", (event) => event.preventDefault());
+      }
+
+      bindTouchButton("btn-left", "left");
+      bindTouchButton("btn-right", "right");
+      bindTouchButton("btn-jump", "jump", "justJump");
+      bindTouchButton("btn-dash", "dash", "justDash");
+      bindTouchButton("btn-attack", "attack", "justAttack");
+
+      function consumeTouchEdge(edgeKey) {
+        const value = touchState[edgeKey];
+        touchState[edgeKey] = false;
+        return value;
+      }
+
+      window.addEventListener("pointerup", () => resetTouchState());
+      window.addEventListener("pointercancel", () => resetTouchState());
+      window.addEventListener("blur", () => resetTouchState());
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) {
+          resetTouchState();
+        }
+      });
+      window.addEventListener("resize", syncMobileHud);
+      window.addEventListener("orientationchange", syncMobileHud);
+      syncMobileHud();
+
+      if (fullscreenBtn) {
+        fullscreenBtn.addEventListener("click", async () => {
+          try {
+            if (!document.fullscreenElement) {
+              await document.documentElement.requestFullscreen();
+            } else {
+              await document.exitFullscreen();
+            }
+          } catch (_error) {
+            // 一部ブラウザではフルスクリーンが許可されない
+          }
+        });
+      }
+
+      function mulberry32(seed) {
+        return function () {
+          seed |= 0;
+          seed = (seed + 0x6d2b79f5) | 0;
+          let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+          t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+          return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+      }
+
+      function addGlow(target, color, outer = 8, inner = 0, distance = 12, quality = 0.12) {
+        try {
+          if (target && target.postFX && target.postFX.addGlow) {
+            target.postFX.addGlow(color, outer, inner, false, quality, distance);
+          }
+        } catch (_error) {
+          // PostFX が無効な環境では通常描画にフォールバックする
+        }
+        return target;
+      }
+
+      function pulseScale(scene, target, from, to, duration) {
+        scene.tweens.add({
+          targets: target,
+          scaleX: { from, to },
+          scaleY: { from, to },
+          duration,
+          yoyo: true,
+          ease: "Sine.easeInOut"
+        });
+      }
+
+      class NeonAudio {
+        constructor() {
+          this.ctx = null;
+          this.master = null;
+          this.fx = null;
+          this.music = null;
+          this.bgmElement = null;
+          this.swingElement = null;
+          this.unlocked = false;
+          this.synthLoopActive = false;
+        }
+
+        unlock() {
+          if (!this.ctx) {
+            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            if (AudioContextClass) {
+              this.ctx = new AudioContextClass();
+              this.master = this.ctx.createGain();
+              this.master.gain.value = 0.6;
+              this.music = this.ctx.createGain();
+              this.music.gain.value = 0.32;
+              this.fx = this.ctx.createGain();
+              this.fx.gain.value = 0.55;
+              this.music.connect(this.master);
+              this.fx.connect(this.master);
+              this.master.connect(this.ctx.destination);
+            }
+          }
+
+          if (this.ctx && this.ctx.state === "suspended") {
+            this.ctx.resume().catch(() => {});
+          }
+
+          if (!this.bgmElement) {
+            this.bgmElement = new Audio(AUDIO_SOURCES.bgmPreview);
+            this.bgmElement.loop = true;
+            this.bgmElement.volume = 0.18;
+            this.bgmElement.crossOrigin = "anonymous";
+            this.bgmElement.preload = "auto";
+          }
+
+          if (!this.swingElement) {
+            this.swingElement = new Audio(AUDIO_SOURCES.swingPreview);
+            this.swingElement.volume = 0.16;
+            this.swingElement.crossOrigin = "anonymous";
+            this.swingElement.preload = "auto";
+          }
+
+          this.unlocked = true;
+          bootNote.classList.add("hide");
+        }
+
+        startBgm() {
+          this.unlock();
+          if (this.bgmElement) {
+            this.bgmElement.play().catch(() => {
+              this.startSynthLoop();
+            });
+          } else {
+            this.startSynthLoop();
+          }
+        }
+
+        stopBgm() {
+          if (this.bgmElement) {
+            this.bgmElement.pause();
+          }
+        }
+
+        startSynthLoop() {
+          if (!this.ctx || this.synthLoopActive) return;
+          this.synthLoopActive = true;
+          const notes = [110, 165, 220, 196, 247, 220, 165, 196];
+          let step = 0;
+          const loop = () => {
+            if (!this.synthLoopActive || !this.ctx) return;
+            const now = this.ctx.currentTime;
+            for (let i = 0; i < 8; i += 1) {
+              const start = now + i * 0.22;
+              this.tone(notes[(step + i) % notes.length], start, 0.16, "sawtooth", 0.022, this.music);
+              this.tone(notes[(step + i + 3) % notes.length] * 0.5, start, 0.18, "triangle", 0.018, this.music);
+              if (i % 2 === 0) {
+                this.noise(start, 0.08, 0.012, this.music);
+              }
+            }
+            step = (step + 2) % notes.length;
+            window.setTimeout(loop, 1700);
+          };
+          loop();
+        }
+
+        tone(freq, start, duration, type, gainValue, destination) {
+          if (!this.ctx || !destination) return;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, start);
+          gain.gain.setValueAtTime(0.0001, start);
+          gain.gain.exponentialRampToValueAtTime(gainValue, start + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+          osc.connect(gain);
+          gain.connect(destination);
+          osc.start(start);
+          osc.stop(start + duration + 0.05);
+        }
+
+        noise(start, duration, gainValue, destination) {
+          if (!this.ctx || !destination) return;
+          const buffer = this.ctx.createBuffer(1, this.ctx.sampleRate * duration, this.ctx.sampleRate);
+          const channel = buffer.getChannelData(0);
+          for (let i = 0; i < channel.length; i += 1) {
+            channel[i] = (Math.random() * 2 - 1) * 0.6;
+          }
+          const src = this.ctx.createBufferSource();
+          const gain = this.ctx.createGain();
+          const filter = this.ctx.createBiquadFilter();
+          filter.type = "highpass";
+          filter.frequency.value = 900;
+          gain.gain.setValueAtTime(gainValue, start);
+          gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+          src.buffer = buffer;
+          src.connect(filter);
+          filter.connect(gain);
+          gain.connect(destination);
+          src.start(start);
+          src.stop(start + duration + 0.05);
+        }
+
+        playAttack() {
+          this.unlock();
+          if (this.swingElement) {
+            const swing = this.swingElement.cloneNode();
+            swing.volume = 0.18;
+            swing.play().catch(() => this.playSynthAttack());
+          } else {
+            this.playSynthAttack();
+          }
+          this.playSynthAttack();
+        }
+
+        playSynthAttack() {
+          if (!this.ctx) return;
+          const t = this.ctx.currentTime;
+          this.tone(280, t, 0.08, "square", 0.05, this.fx);
+          this.tone(640, t + 0.01, 0.09, "sawtooth", 0.04, this.fx);
+          this.noise(t, 0.08, 0.016, this.fx);
+        }
+
+        playDash() {
+          if (!this.ctx) return;
+          const t = this.ctx.currentTime;
+          this.tone(140, t, 0.14, "sawtooth", 0.04, this.fx);
+          this.noise(t, 0.16, 0.02, this.fx);
+        }
+
+        playJump() {
+          if (!this.ctx) return;
+          const t = this.ctx.currentTime;
+          this.tone(300, t, 0.07, "triangle", 0.025, this.fx);
+          this.tone(500, t + 0.03, 0.09, "triangle", 0.022, this.fx);
+        }
+
+        playPickup() {
+          if (!this.ctx) return;
+          const t = this.ctx.currentTime;
+          this.tone(660, t, 0.08, "square", 0.024, this.fx);
+          this.tone(990, t + 0.04, 0.08, "triangle", 0.02, this.fx);
+        }
+
+        playExplosion() {
+          if (!this.ctx) return;
+          const t = this.ctx.currentTime;
+          this.noise(t, 0.25, 0.06, this.fx);
+          this.tone(90, t, 0.18, "sawtooth", 0.05, this.fx);
+        }
+
+        playHurt() {
+          if (!this.ctx) return;
+          const t = this.ctx.currentTime;
+          this.tone(180, t, 0.16, "sawtooth", 0.04, this.fx);
+          this.noise(t, 0.16, 0.03, this.fx);
+        }
+      }
+
+      const audio = new NeonAudio();
+
+      function createTextures(scene) {
+        if (scene.textures.exists("player")) {
+          return;
+        }
+
+        const g = scene.make.graphics({ x: 0, y: 0, add: false });
+
+        g.fillGradientStyle(0x080b18, 0x10133b, 0x030408, 0x090f28, 1);
+        g.fillRect(0, 0, 512, 512);
+        g.generateTexture("sky-gradient", 512, 512);
+        g.clear();
+
+        g.fillStyle(0xffffff, 0.95);
+        g.fillCircle(64, 64, 18);
+        g.lineStyle(4, COLORS.cyan, 1);
+        g.strokeCircle(64, 64, 26);
+        g.generateTexture("orb", 128, 128);
+        g.clear();
+
+        g.fillStyle(0x0d152c, 1);
+        g.fillRoundedRect(0, 0, 256, 48, 14);
+        g.fillStyle(0x182544, 1);
+        g.fillRoundedRect(10, 8, 236, 32, 10);
+        g.fillStyle(COLORS.cyan, 0.9);
+        g.fillRect(14, 10, 228, 5);
+        g.fillStyle(COLORS.magenta, 0.7);
+        g.fillRect(18, 29, 92, 3);
+        g.fillStyle(COLORS.lime, 0.6);
+        g.fillRect(170, 29, 58, 3);
+        g.generateTexture("platform", 256, 48);
+        g.clear();
+
+        g.fillStyle(0x0e1325, 1);
+        g.fillRoundedRect(24, 16, 48, 58, 12);
+        g.fillStyle(0x11182d, 1);
+        g.fillRoundedRect(28, 4, 40, 26, 10);
+        g.fillStyle(0x151e35, 1);
+        g.fillRect(16, 28, 12, 32);
+        g.fillRect(68, 28, 12, 32);
+        g.fillRect(34, 74, 12, 24);
+        g.fillRect(50, 74, 12, 24);
+        g.fillStyle(COLORS.cyan, 1);
+        g.fillCircle(42, 24, 4);
+        g.fillCircle(54, 24, 4);
+        g.lineStyle(4, COLORS.cyan, 0.9);
+        g.strokeLineShape(new Phaser.Geom.Line(28, 36, 68, 36));
+        g.lineStyle(3, COLORS.violet, 0.9);
+        g.strokeLineShape(new Phaser.Geom.Line(30, 60, 66, 60));
+        g.lineStyle(3, COLORS.magenta, 0.85);
+        g.strokeLineShape(new Phaser.Geom.Line(48, 24, 48, 86));
+        g.generateTexture("player", 96, 112);
+        g.clear();
+
+        g.fillStyle(0x121b2f, 1);
+        g.fillRoundedRect(10, 18, 76, 34, 14);
+        g.fillStyle(0x1f2b47, 1);
+        g.fillRoundedRect(18, 24, 60, 20, 10);
+        g.fillStyle(COLORS.magenta, 1);
+        g.fillRoundedRect(32, 28, 32, 12, 6);
+        g.fillStyle(COLORS.cyan, 0.85);
+        g.fillCircle(18, 35, 6);
+        g.fillCircle(78, 35, 6);
+        g.fillStyle(COLORS.violet, 0.8);
+        g.fillRect(44, 10, 8, 10);
+        g.generateTexture("drone", 96, 64);
+        g.clear();
+
+        g.fillStyle(0x0c1324, 1);
+        g.fillRoundedRect(22, 10, 46, 26, 8);
+        g.fillStyle(0x152441, 1);
+        g.fillRect(14, 34, 62, 38);
+        g.fillStyle(0x1a2a49, 1);
+        g.fillRect(8, 40, 12, 32);
+        g.fillRect(76, 40, 12, 32);
+        g.fillRect(26, 72, 12, 24);
+        g.fillRect(54, 72, 12, 24);
+        g.fillStyle(COLORS.lime, 1);
+        g.fillRect(34, 18, 22, 6);
+        g.fillStyle(COLORS.magenta, 0.9);
+        g.fillRect(26, 48, 38, 6);
+        g.generateTexture("robot", 96, 112);
+        g.clear();
+
+        g.fillStyle(COLORS.cyan, 0.95);
+        g.fillTriangle(24, 2, 46, 24, 24, 46);
+        g.fillTriangle(24, 2, 2, 24, 24, 46);
+        g.fillStyle(0xffffff, 0.8);
+        g.fillCircle(24, 24, 6);
+        g.generateTexture("core", 48, 48);
+        g.clear();
+
+        g.fillStyle(0x0f1630, 1);
+        g.fillRoundedRect(26, 8, 20, 116, 8);
+        g.fillStyle(COLORS.cyan, 0.95);
+        g.fillRect(34, 0, 4, 132);
+        g.fillStyle(COLORS.magenta, 1);
+        g.fillCircle(36, 16, 10);
+        g.fillStyle(COLORS.lime, 0.9);
+        g.fillCircle(36, 68, 8);
+        g.generateTexture("checkpoint", 72, 132);
+        g.clear();
+
+        g.lineStyle(8, COLORS.cyan, 0.95);
+        g.strokeCircle(64, 64, 36);
+        g.lineStyle(6, COLORS.magenta, 0.95);
+        g.strokeCircle(64, 64, 22);
+        g.fillStyle(COLORS.violet, 0.7);
+        g.fillCircle(64, 64, 14);
+        g.generateTexture("portal", 128, 128);
+        g.clear();
+
+        g.fillStyle(0xffffff, 1);
+        g.fillRect(0, 0, 6, 24);
+        g.generateTexture("rain", 6, 24);
+        g.clear();
+
+        g.fillStyle(0xffffff, 1);
+        g.fillCircle(6, 6, 5);
+        g.generateTexture("spark", 12, 12);
+        g.clear();
+
+        g.fillStyle(0xffffff, 0.96);
+        g.fillTriangle(8, 48, 150, 8, 104, 76);
+        g.fillTriangle(18, 58, 138, 24, 76, 80);
+        g.generateTexture("slash", 160, 90);
+        g.clear();
+
+        const skylineTexture = (key, seed, baseColor, accentA, accentB, heightMin, heightMax) => {
+          const rand = mulberry32(seed);
+          const width = 1024;
+          const height = 420;
+          const sky = scene.make.graphics({ x: 0, y: 0, add: false });
+          sky.fillStyle(0x000000, 0);
+          sky.fillRect(0, 0, width, height);
+          let x = 0;
+          while (x < width) {
+            const buildingW = Math.floor(38 + rand() * 82);
+            const buildingH = Math.floor(heightMin + rand() * (heightMax - heightMin));
+            const top = height - buildingH;
+            sky.fillStyle(baseColor, 0.98);
+            sky.fillRect(x, top, buildingW, buildingH);
+            const windowCols = Math.max(2, Math.floor(buildingW / 14));
+            const windowRows = Math.max(2, Math.floor(buildingH / 18));
+            for (let col = 0; col < windowCols; col += 1) {
+              for (let row = 0; row < windowRows; row += 1) {
+                if (rand() > 0.35) {
+                  sky.fillStyle(rand() > 0.5 ? accentA : accentB, 0.7 + rand() * 0.25);
+                  sky.fillRect(x + 6 + col * 12, top + 8 + row * 16, 6, 8);
+                }
+              }
+            }
+            if (rand() > 0.68) {
+              const signY = top + 22 + rand() * (buildingH * 0.4);
+              const signW = 22 + rand() * 36;
+              const signH = 10 + rand() * 18;
+              sky.fillStyle(rand() > 0.5 ? COLORS.magenta : COLORS.cyan, 0.9);
+              sky.fillRect(x + 8, signY, signW, signH);
+            }
+            x += buildingW + Math.floor(rand() * 10);
+          }
+          sky.generateTexture(key, width, height);
+          sky.destroy();
+        };
+
+        skylineTexture("skyline-far", 11, 0x081225, COLORS.violet, COLORS.cyan, 110, 230);
+        skylineTexture("skyline-mid", 19, 0x0b1833, COLORS.magenta, COLORS.cyan, 180, 300);
+        skylineTexture("skyline-front", 41, 0x102142, COLORS.lime, COLORS.magenta, 240, 360);
+
+        g.destroy();
+      }
+
+      class TitleScene extends Phaser.Scene {
+        constructor() {
+          super("TitleScene");
+        }
+
+        create() {
+          createTextures(this);
+          touchUi.classList.add("show");
+          this.buildBackground();
+          this.buildUi();
+
+          const startGame = () => {
+            audio.startBgm();
+            this.scene.start("GameScene");
+          };
+
+          this.input.once("pointerdown", () => {
+            audio.unlock();
+          });
+
+          this.input.keyboard.once("keydown-ENTER", startGame);
+          this.input.keyboard.once("keydown-SPACE", startGame);
+          this.time.delayedCall(300, () => {
+            this.input.once("pointerdown", startGame);
+          });
+        }
+
+        buildBackground() {
+          this.add.tileSprite(GAME_W / 2, GAME_H / 2, GAME_W, GAME_H, "sky-gradient");
+          const moon = this.add.image(1160, 170, "orb").setScale(4.4).setAlpha(0.42);
+          moon.setTint(COLORS.violet);
+          addGlow(moon, COLORS.magenta, 20, 0, 38);
+
+          const far = this.add.tileSprite(GAME_W / 2, 340, GAME_W * 1.2, 320, "skyline-far");
+          far.setAlpha(0.92);
+          const mid = this.add.tileSprite(GAME_W / 2, 410, GAME_W * 1.3, 360, "skyline-mid");
+          const front = this.add.tileSprite(GAME_W / 2, 500, GAME_W * 1.35, 420, "skyline-front");
+          front.setAlpha(0.96);
+
+          this.tweens.add({
+            targets: [far, mid, front],
+            tilePositionX: "+=180",
+            duration: 12000,
+            repeat: -1
+          });
+
+          for (let i = 0; i < 5; i += 1) {
+            const sign = this.add.text(200 + i * 260, 260 + (i % 2) * 72, i % 2 ? "ネオン" : "ブレード", {
+              fontFamily: '"Zen Kaku Gothic New"',
+              fontSize: "26px",
+              fontStyle: "700",
+              color: i % 2 ? "#58f6ff" : "#ff38d1"
+            }).setAlpha(0.65);
+            addGlow(sign, i % 2 ? COLORS.cyan : COLORS.magenta, 10, 0, 12);
+          }
+
+          const road = this.add.rectangle(GAME_W / 2, 790, GAME_W + 100, 230, 0x05070d, 0.92);
+          const reflection = this.add.rectangle(GAME_W / 2, 738, GAME_W + 100, 70, 0x0e1630, 0.74);
+          reflection.setBlendMode(Phaser.BlendModes.SCREEN);
+          const strip = this.add.rectangle(GAME_W / 2, 700, GAME_W, 4, COLORS.cyan, 0.75);
+          addGlow(strip, COLORS.cyan, 10, 0, 16);
+
+          this.rain = [];
+          this.rainGraphics = this.add.graphics().setDepth(30);
+          for (let i = 0; i < 180; i += 1) {
+            this.rain.push({
+              x: Math.random() * GAME_W,
+              y: Math.random() * GAME_H,
+              len: 10 + Math.random() * 18,
+              speed: 14 + Math.random() * 10
+            });
+          }
+        }
+
+        buildUi() {
+          const title = this.add.text(GAME_W / 2, 112, "NEON\nPHANTOM BLADE", {
+            fontFamily: '"Audiowide", sans-serif',
+            fontSize: "68px",
+            align: "center",
+            lineSpacing: 8,
+            color: "#f6fbff",
+            stroke: "#09101f",
+            strokeThickness: 10
+          }).setOrigin(0.5, 0);
+          addGlow(title, COLORS.cyan, 16, 0, 22);
+          addGlow(title, COLORS.magenta, 8, 0, 38);
+
+          const subtitle = this.add.text(GAME_W / 2, 255, "ネオン・ファントム・ブレード", {
+            fontFamily: '"Zen Kaku Gothic New"',
+            fontSize: "30px",
+            fontStyle: "900",
+            color: "#9cff4d"
+          }).setOrigin(0.5);
+          addGlow(subtitle, COLORS.lime, 12, 0, 14);
+
+          const panel = this.add.rectangle(GAME_W / 2, 520, 760, 280, 0x060b15, 0.66);
+          panel.setStrokeStyle(2, COLORS.cyan, 0.6);
+          addGlow(panel, COLORS.violet, 8, 0, 12);
+
+          const body = [
+            "サイドビュー アクション × ネオンオビー",
+            "A / D or ← → で いどう",
+            "スペースで ジャンプ（にだんジャンプOK）",
+            "Shift で ダッシュ / X または J で けんげき",
+            "チェックポイントを ふみながら ネオンコアを あつめろ"
+          ].join("\n");
+
+          this.add.text(GAME_W / 2, 465, body, {
+            fontFamily: '"Zen Kaku Gothic New"',
+            fontSize: "24px",
+            align: "center",
+            lineSpacing: 10,
+            color: "#edf7ff"
+          }).setOrigin(0.5);
+
+          const start = this.add.text(GAME_W / 2, 655, "クリック / タップ で スタート", {
+            fontFamily: '"Zen Kaku Gothic New"',
+            fontSize: "28px",
+            fontStyle: "900",
+            color: "#58f6ff"
+          }).setOrigin(0.5);
+          addGlow(start, COLORS.cyan, 14, 0, 16);
+          pulseScale(this, start, 1, 1.05, 620);
+
+          const credit = this.add.text(28, GAME_H - 74,
+            "BGM: Dark cyberpunk orchestral music / Freesound\nSE: Metal hit slide.mp3 / Freesound", {
+              fontFamily: '"Zen Kaku Gothic New"',
+              fontSize: "16px",
+              color: "#bcd4ff"
+            });
+          credit.setAlpha(0.86);
+
+          const sources = this.add.text(28, GAME_H - 38,
+            `${AUDIO_SOURCES.bgmPage}  |  ${AUDIO_SOURCES.swingPage}`, {
+              fontFamily: "monospace",
+              fontSize: "12px",
+              color: "#74f2ff"
+            });
+          sources.setAlpha(0.76);
+        }
+
+        update() {
+          this.rainGraphics.clear();
+          this.rainGraphics.lineStyle(2, 0x9beeff, 0.28);
+          for (const drop of this.rain) {
+            this.rainGraphics.beginPath();
+            this.rainGraphics.moveTo(drop.x, drop.y);
+            this.rainGraphics.lineTo(drop.x - 8, drop.y + drop.len);
+            this.rainGraphics.strokePath();
+            drop.y += drop.speed;
+            drop.x -= drop.speed * 0.28;
+            if (drop.y > GAME_H + 20) {
+              drop.y = -20;
+              drop.x = Math.random() * GAME_W;
+            }
+            if (drop.x < -30) {
+              drop.x = GAME_W + 30;
+            }
+          }
+        }
+      }
+
+      class GameScene extends Phaser.Scene {
+        constructor() {
+          super("GameScene");
+        }
+
+        create() {
+          createTextures(this);
+          audio.startBgm();
+          this.isMobile = IS_COARSE_POINTER;
+          this.physics.world.setBounds(0, 0, WORLD_W, WORLD_H);
+          this.cameras.main.setBounds(0, 0, WORLD_W, WORLD_H);
+          this.cameras.main.setBackgroundColor("#050712");
+          this.cameras.main.roundPixels = true;
+
+          this.state = {
+            lives: 3,
+            cores: 0,
+            score: 0,
+            combo: 0,
+            maxCombo: 0,
+            comboTimer: 0,
+            respawnX: 180,
+            respawnY: 640,
+            jumpsRemaining: 2,
+            dashReadyAt: 0,
+            dashEndAt: 0,
+            attackReadyAt: 0,
+            attackActiveUntil: 0,
+            invulnerableUntil: 0,
+            glitch: 0,
+            dead: false,
+            cleared: false,
+            lastTrailAt: 0,
+            wasGrounded: false
+          };
+
+          this.platforms = this.physics.add.staticGroup();
+          this.movingPlatforms = [];
+          this.enemies = this.physics.add.group();
+          this.cores = this.physics.add.group({ allowGravity: false, immovable: true });
+          this.hazards = this.physics.add.staticGroup();
+          this.checkpoints = [];
+
+          this.buildBackdrop();
+          this.buildStage();
+          this.createPlayer();
+          this.createUi();
+          this.createOverlays();
+          this.setupCollisions();
+          this.setupInput();
+          this.handleViewportChange = () => this.refreshMobileCamera();
+          window.addEventListener("resize", this.handleViewportChange);
+          window.addEventListener("orientationchange", this.handleViewportChange);
+          this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+            window.removeEventListener("resize", this.handleViewportChange);
+            window.removeEventListener("orientationchange", this.handleViewportChange);
+          });
+
+          this.time.addEvent({
+            delay: 800,
+            loop: true,
+            callback: () => {
+              if (this.state.combo > 0 && this.time.now > this.state.comboTimer) {
+                this.state.combo = 0;
+              }
+            }
+          });
+        }
+
+        setupInput() {
+          this.keys = this.input.keyboard.addKeys({
+            left: "A",
+            right: "D",
+            jump: "SPACE",
+            dash: "SHIFT",
+            attackA: "J",
+            attackB: "X",
+            leftAlt: "LEFT",
+            rightAlt: "RIGHT",
+            jumpAlt: "UP"
+          });
+        }
+
+        refreshMobileCamera() {
+          if (!this.cameras || !this.cameras.main) return;
+          const zoom = this.isMobile ? (IS_PORTRAIT() ? 0.78 : 0.9) : 1.03;
+          this.cameras.main.setZoom(zoom);
+        }
+
+        buildBackdrop() {
+          this.add.tileSprite(WORLD_W / 2, WORLD_H / 2, WORLD_W, WORLD_H, "sky-gradient").setDepth(-30);
+
+          const moonA = this.add.image(980, 140, "orb").setScale(4.6).setAlpha(0.38).setDepth(-25).setScrollFactor(0.03);
+          moonA.setTint(COLORS.violet);
+          addGlow(moonA, COLORS.magenta, 18, 0, 34);
+
+          const moonB = this.add.image(4650, 180, "orb").setScale(3.2).setAlpha(0.22).setDepth(-25).setScrollFactor(0.06);
+          moonB.setTint(COLORS.cyan);
+          addGlow(moonB, COLORS.cyan, 12, 0, 26);
+
+          this.farCity = this.add.tileSprite(WORLD_W / 2, 310, WORLD_W, 340, "skyline-far").setDepth(-20).setScrollFactor(0.12, 1);
+          this.midCity = this.add.tileSprite(WORLD_W / 2, 400, WORLD_W, 380, "skyline-mid").setDepth(-18).setScrollFactor(0.22, 1);
+          this.frontCity = this.add.tileSprite(WORLD_W / 2, 520, WORLD_W, 420, "skyline-front").setDepth(-16).setScrollFactor(0.36, 1);
+
+          const road = this.add.rectangle(WORLD_W / 2, 820, WORLD_W, 220, 0x04070c, 0.96).setDepth(-10);
+          const roadGlow = this.add.rectangle(WORLD_W / 2, 712, WORLD_W, 6, COLORS.cyan, 0.35).setDepth(-9);
+          addGlow(roadGlow, COLORS.cyan, 12, 0, 18);
+
+          for (let i = 0; i < 16; i += 1) {
+            const x = 240 + i * 330;
+            const sign = this.add.text(x, 250 + (i % 3) * 46, i % 2 ? "カタナ" : "ネオン", {
+              fontFamily: '"Zen Kaku Gothic New"',
+              fontSize: "22px",
+              fontStyle: "700",
+              color: i % 3 ? "#ff38d1" : "#58f6ff"
+            }).setAlpha(0.6).setDepth(-15).setScrollFactor(0.42);
+            addGlow(sign, i % 3 ? COLORS.magenta : COLORS.cyan, 10, 0, 12);
+          }
+
+          this.bgDrones = [];
+          for (let i = 0; i < 8; i += 1) {
+            const drone = this.add.image(500 + i * 620, 190 + (i % 3) * 34, "drone")
+              .setScale(0.35)
+              .setAlpha(0.45)
+              .setDepth(-14)
+              .setScrollFactor(0.28);
+            drone.setTint(i % 2 ? COLORS.cyan : COLORS.magenta);
+            addGlow(drone, i % 2 ? COLORS.cyan : COLORS.magenta, 10, 0, 10);
+            this.bgDrones.push({ sprite: drone, baseY: drone.y, speed: 0.0016 + i * 0.00011 });
+          }
+        }
+
+        buildStage() {
+          const addPlatform = (x, y, width, height = 48, tint = COLORS.cyan) => {
+            const platform = this.platforms.create(x, y, "platform");
+            platform.setDisplaySize(width, height);
+            platform.refreshBody();
+            platform.setTint(tint, tint, 0x101830, 0x0a0e18);
+            platform.setDepth(10);
+            addGlow(platform, tint, 8, 0, 14);
+            const reflection = this.add.rectangle(x, y + 32, width * 0.68, 12, tint, 0.14).setDepth(1);
+            reflection.setBlendMode(Phaser.BlendModes.ADD);
+            return platform;
+          };
+
+          const addMovingPlatform = (x, y, width, height, tint, dx, dy, duration) => {
+            const platform = this.physics.add.image(x, y, "platform");
+            platform.setDisplaySize(width, height);
+            platform.setImmovable(true);
+            platform.body.allowGravity = false;
+            platform.setTint(tint, tint, 0x101830, 0x0a0e18);
+            platform.setDepth(10);
+            addGlow(platform, tint, 10, 0, 16);
+            this.tweens.add({
+              targets: platform,
+              x: x + dx,
+              y: y + dy,
+              duration,
+              ease: "Sine.easeInOut",
+              yoyo: true,
+              repeat: -1,
+              onUpdate: () => {
+                platform.body.updateFromGameObject();
+              }
+            });
+            this.movingPlatforms.push(platform);
+            return platform;
+          };
+
+          const addCore = (x, y, tint = COLORS.cyan) => {
+            const core = this.cores.create(x, y, "core");
+            core.setScale(0.9);
+            core.setDepth(12);
+            core.setTint(tint);
+            addGlow(core, tint, 12, 0, 12);
+            this.tweens.add({
+              targets: core,
+              y: y - 10,
+              duration: 900 + (x % 5) * 90,
+              yoyo: true,
+              repeat: -1,
+              ease: "Sine.easeInOut"
+            });
+            this.tweens.add({
+              targets: core,
+              angle: 360,
+              duration: 2600,
+              repeat: -1
+            });
+          };
+
+          const addCheckpoint = (x, y, label) => {
+            const beacon = this.physics.add.staticSprite(x, y, "checkpoint");
+            beacon.setDepth(14);
+            beacon.label = label;
+            beacon.activated = false;
+            addGlow(beacon, COLORS.cyan, 12, 0, 18);
+            const text = this.add.text(x, y - 92, label, {
+              fontFamily: '"Zen Kaku Gothic New"',
+              fontSize: "22px",
+              fontStyle: "900",
+              color: "#9cff4d"
+            }).setOrigin(0.5).setDepth(14);
+            addGlow(text, COLORS.lime, 10, 0, 12);
+            this.checkpoints.push({ beacon, text });
+          };
+
+          const addLaser = (x, y, height) => {
+            const laser = this.hazards.create(x, y, "rain");
+            laser.setDisplaySize(18, height);
+            laser.refreshBody();
+            laser.setTint(COLORS.magenta);
+            laser.setDepth(13);
+            laser.setAlpha(0.82);
+            addGlow(laser, COLORS.magenta, 16, 0, 18);
+            this.tweens.add({
+              targets: laser,
+              alpha: 0.45,
+              duration: 240,
+              repeat: -1,
+              yoyo: true,
+              ease: "Sine.easeInOut"
+            });
+          };
+
+          const addDrone = (x, y, range) => {
+            const drone = this.enemies.create(x, y, "drone");
+            drone.setDepth(18);
+            drone.body.allowGravity = false;
+            drone.setCircle(24, 24, 8);
+            drone.setDataEnabled();
+            drone.data.set({
+              type: "drone",
+              hp: 2,
+              baseY: y,
+              range,
+              dir: 1,
+              originX: x,
+              phase: Math.random() * Math.PI * 2
+            });
+            addGlow(drone, COLORS.magenta, 12, 0, 16);
+          };
+
+          const addRobot = (x, y, range) => {
+            const robot = this.enemies.create(x, y, "robot");
+            robot.setDepth(18);
+            robot.body.setSize(44, 92);
+            robot.body.setOffset(26, 12);
+            robot.setDataEnabled();
+            robot.data.set({
+              type: "robot",
+              hp: 3,
+              range,
+              dir: 1,
+              originX: x
+            });
+            addGlow(robot, COLORS.lime, 10, 0, 14);
+          };
+
+          addPlatform(270, 800, 760, 56, COLORS.cyan);
+          addPlatform(980, 730, 250, 46, COLORS.magenta);
+          addPlatform(1360, 800, 300, 56, COLORS.cyan);
+          addPlatform(1750, 700, 220, 44, COLORS.violet);
+          addPlatform(2030, 640, 220, 44, COLORS.magenta);
+          addPlatform(2320, 740, 250, 44, COLORS.cyan);
+          addPlatform(2680, 800, 300, 56, COLORS.lime);
+          addPlatform(3020, 720, 180, 42, COLORS.magenta);
+          addPlatform(3260, 620, 180, 42, COLORS.cyan);
+          addPlatform(3500, 520, 180, 42, COLORS.violet);
+          addPlatform(3860, 800, 260, 56, COLORS.cyan);
+          addMovingPlatform(4140, 670, 180, 42, COLORS.magenta, 130, 0, 2200);
+          addMovingPlatform(4470, 590, 180, 42, COLORS.violet, 0, -110, 2400);
+          addPlatform(4800, 800, 320, 56, COLORS.lime);
+          addPlatform(5150, 710, 220, 44, COLORS.magenta);
+          addPlatform(5480, 800, 320, 56, COLORS.cyan);
+
+          addCheckpoint(1450, 670, "チェックポイント 1");
+          addCheckpoint(3650, 670, "チェックポイント 2");
+
+          [
+            [380, 718], [460, 718], [540, 718], [980, 660], [1090, 660],
+            [1360, 730], [1750, 630], [1860, 630], [2030, 570], [2140, 570],
+            [2320, 670], [2440, 670], [2680, 730], [3020, 650], [3260, 550],
+            [3500, 450], [3880, 730], [4140, 600], [4470, 500], [4800, 730],
+            [5150, 640], [5480, 730]
+          ].forEach(([x, y], index) => addCore(x, y, index % 3 === 0 ? COLORS.lime : (index % 2 ? COLORS.cyan : COLORS.magenta)));
+
+          addDrone(1120, 590, 120);
+          addRobot(1360, 690, 110);
+          addDrone(1870, 500, 120);
+          addDrone(2420, 580, 140);
+          addRobot(2680, 690, 90);
+          addDrone(3320, 470, 100);
+          addRobot(3860, 690, 100);
+          addDrone(4210, 500, 120);
+          addRobot(4820, 690, 100);
+          addDrone(5200, 560, 130);
+
+          addLaser(4630, 680, 200);
+          addLaser(4700, 680, 200);
+          addLaser(5330, 600, 180);
+
+          this.portal = this.physics.add.staticSprite(5480, 650, "portal");
+          this.portal.setDepth(18);
+          addGlow(this.portal, COLORS.cyan, 18, 0, 24);
+          this.tweens.add({
+            targets: this.portal,
+            scale: 1.08,
+            duration: 700,
+            yoyo: true,
+            repeat: -1
+          });
+        }
+
+        createPlayer() {
+          this.player = this.physics.add.sprite(this.state.respawnX, this.state.respawnY, "player");
+          this.player.setDepth(20);
+          this.player.setCollideWorldBounds(true);
+          this.player.setBounce(0.02);
+          this.player.body.setSize(42, 96);
+          this.player.body.setOffset(26, 10);
+          addGlow(this.player, COLORS.cyan, 12, 0, 18);
+          addGlow(this.player, COLORS.violet, 6, 0, 30);
+
+          this.attackZone = this.add.zone(this.player.x, this.player.y, 96, 60);
+          this.physics.add.existing(this.attackZone);
+          this.attackZone.body.allowGravity = false;
+          this.attackZone.body.enable = false;
+
+          this.cameras.main.startFollow(this.player, true, 0.14, 0.12);
+          this.refreshMobileCamera();
+        }
+
+        createUi() {
+          this.uiLives = this.add.text(24, 18, "", {
+            fontFamily: '"Zen Kaku Gothic New"',
+            fontSize: "28px",
+            fontStyle: "900",
+            color: "#f4fbff"
+          }).setScrollFactor(0).setDepth(100);
+          addGlow(this.uiLives, COLORS.magenta, 12, 0, 12);
+
+          this.uiCore = this.add.text(24, 54, "", {
+            fontFamily: '"Zen Kaku Gothic New"',
+            fontSize: "24px",
+            fontStyle: "700",
+            color: "#9cff4d"
+          }).setScrollFactor(0).setDepth(100);
+          addGlow(this.uiCore, COLORS.lime, 10, 0, 10);
+
+          this.uiHint = this.add.text(GAME_W / 2, 18, "ネオンシティ を かけぬけろ", {
+            fontFamily: '"Zen Kaku Gothic New"',
+            fontSize: "26px",
+            fontStyle: "900",
+            color: "#58f6ff"
+          }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(100);
+          addGlow(this.uiHint, COLORS.cyan, 12, 0, 16);
+
+          this.uiCombo = this.add.text(GAME_W - 28, 18, "", {
+            fontFamily: '"Audiowide", sans-serif',
+            fontSize: "34px",
+            align: "right",
+            color: "#ff38d1"
+          }).setOrigin(1, 0).setScrollFactor(0).setDepth(100);
+          addGlow(this.uiCombo, COLORS.magenta, 12, 0, 14);
+
+          this.banner = this.add.text(GAME_W / 2, 110, "", {
+            fontFamily: '"Zen Kaku Gothic New"',
+            fontSize: "40px",
+            fontStyle: "900",
+            color: "#f5fbff"
+          }).setOrigin(0.5).setScrollFactor(0).setDepth(100).setAlpha(0);
+          addGlow(this.banner, COLORS.cyan, 18, 0, 20);
+        }
+
+        createOverlays() {
+          this.scanlines = this.add.graphics().setDepth(90).setScrollFactor(0);
+          this.rainGraphics = this.add.graphics().setDepth(91).setScrollFactor(0);
+          this.glitchGraphics = this.add.graphics().setDepth(92).setScrollFactor(0);
+          this.flashOverlay = this.add.rectangle(0, 0, GAME_W, GAME_H, 0xffffff, 0)
+            .setOrigin(0)
+            .setScrollFactor(0)
+            .setDepth(93);
+
+          this.rainDrops = [];
+          const rainCount = this.isMobile ? 140 : 220;
+          for (let i = 0; i < rainCount; i += 1) {
+            this.rainDrops.push({
+              x: Math.random() * GAME_W,
+              y: Math.random() * GAME_H,
+              len: 12 + Math.random() * 22,
+              speed: 18 + Math.random() * 12
+            });
+          }
+        }
+
+        setupCollisions() {
+          this.physics.add.collider(this.player, this.platforms);
+          for (const platform of this.movingPlatforms) {
+            this.physics.add.collider(this.player, platform);
+          }
+          this.physics.add.collider(this.enemies, this.platforms);
+          for (const platform of this.movingPlatforms) {
+            this.physics.add.collider(this.enemies, platform);
+          }
+
+          this.physics.add.overlap(this.player, this.cores, (_player, core) => {
+            if (!core.active) return;
+            core.disableBody(true, true);
+            this.state.cores += 1;
+            this.state.score += 100;
+            audio.playPickup();
+            this.spawnBurst(core.x, core.y, [COLORS.cyan, COLORS.lime, COLORS.magenta], 12, 140);
+            this.pulseBanner("ネオンコア +1", "#9cff4d");
+          });
+
+          this.physics.add.overlap(this.player, this.hazards, () => {
+            this.takeDamage("laser");
+          });
+
+          this.physics.add.overlap(this.player, this.enemies, (_player, enemy) => {
+            if (!enemy.active || this.state.dead) return;
+            if (this.time.now < this.state.dashEndAt) {
+              this.hitEnemy(enemy, 2, true);
+              return;
+            }
+            this.takeDamage(enemy.getData("type"));
+          });
+
+          this.physics.add.overlap(this.attackZone, this.enemies, (_zone, enemy) => {
+            if (!enemy.active || !this.attackZone.body.enable) return;
+            this.hitEnemy(enemy, 1, false);
+          });
+
+          for (const checkpoint of this.checkpoints) {
+            this.physics.add.overlap(this.player, checkpoint.beacon, () => {
+              if (checkpoint.beacon.activated) return;
+              checkpoint.beacon.activated = true;
+              checkpoint.beacon.setTint(COLORS.lime);
+              addGlow(checkpoint.beacon, COLORS.lime, 18, 0, 18);
+              this.state.respawnX = checkpoint.beacon.x;
+              this.state.respawnY = checkpoint.beacon.y - 40;
+              this.pulseBanner("チェックポイント!", "#9cff4d");
+              this.spawnBurst(checkpoint.beacon.x, checkpoint.beacon.y - 20, [COLORS.lime, COLORS.cyan], 18, 170);
+            });
+          }
+
+          this.physics.add.overlap(this.player, this.portal, () => {
+            if (this.state.cleared || this.state.dead) return;
+            this.state.cleared = true;
+            this.physics.pause();
+            this.cameras.main.shake(260, 0.008);
+            this.flash("#58f6ff", 0.2, 240);
+            this.time.delayedCall(700, () => {
+              this.scene.start("EndScene", {
+                clear: true,
+                score: this.state.score + this.state.cores * 100,
+                cores: this.state.cores,
+                maxCombo: this.state.maxCombo
+              });
+            });
+          });
+        }
+
+        hitEnemy(enemy, damage, fromDash) {
+          if (!enemy.active || enemy.getData("dead")) return;
+          const hp = enemy.getData("hp") - damage;
+          enemy.setData("hp", hp);
+          enemy.setTint(fromDash ? COLORS.cyan : COLORS.magenta);
+          this.time.delayedCall(70, () => {
+            if (enemy.active) {
+              enemy.clearTint();
+            }
+          });
+
+          this.state.combo += 1;
+          this.state.maxCombo = Math.max(this.state.maxCombo, this.state.combo);
+          this.state.comboTimer = this.time.now + 1800;
+          this.state.score += 150;
+          this.pulseCombo();
+          this.freezeFrame(46);
+          this.cameras.main.shake(110, fromDash ? 0.007 : 0.005);
+          this.state.glitch = 1;
+          this.spawnBurst(enemy.x, enemy.y, [COLORS.cyan, COLORS.magenta, COLORS.lime], fromDash ? 28 : 18, fromDash ? 230 : 180);
+          this.spawnSlashWave(enemy.x, enemy.y, fromDash ? COLORS.cyan : COLORS.magenta, 1.35);
+
+          if (hp <= 0) {
+            enemy.setData("dead", true);
+            audio.playExplosion();
+            this.time.delayedCall(10, () => {
+              if (!enemy.active) return;
+              this.spawnExplosion(enemy.x, enemy.y);
+              enemy.disableBody(true, true);
+            });
+          }
+        }
+
+        takeDamage(reason) {
+          if (this.state.dead || this.time.now < this.state.invulnerableUntil || this.state.cleared) return;
+          this.state.dead = true;
+          this.state.lives -= 1;
+          this.state.combo = 0;
+          this.state.invulnerableUntil = this.time.now + 1500;
+          audio.playHurt();
+          this.flash("#ff3860", 0.28, 240);
+          this.cameras.main.shake(240, 0.01);
+          this.spawnExplosion(this.player.x, this.player.y);
+
+          if (this.state.lives <= 0) {
+            this.physics.pause();
+            this.time.delayedCall(700, () => {
+              this.scene.start("EndScene", {
+                clear: false,
+                score: this.state.score,
+                cores: this.state.cores,
+                maxCombo: this.state.maxCombo,
+                reason
+              });
+            });
+            return;
+          }
+
+          this.player.setVisible(false);
+          this.player.body.enable = false;
+          this.time.delayedCall(580, () => {
+            this.player.body.enable = true;
+            this.player.setVisible(true);
+            this.player.setPosition(this.state.respawnX, this.state.respawnY);
+            this.player.setVelocity(0, 0);
+            this.state.jumpsRemaining = 2;
+            this.state.dead = false;
+            this.pulseBanner("リスポーン", "#58f6ff");
+          });
+        }
+
+        freezeFrame(duration) {
+          this.physics.world.pause();
+          this.time.delayedCall(duration, () => {
+            if (!this.state.dead && !this.state.cleared) {
+              this.physics.world.resume();
+            }
+          });
+        }
+
+        flash(color, alpha, duration) {
+          this.flashOverlay.fillColor = Phaser.Display.Color.HexStringToColor(color).color;
+          this.flashOverlay.alpha = alpha;
+          this.tweens.add({
+            targets: this.flashOverlay,
+            alpha: 0,
+            duration
+          });
+        }
+
+        pulseBanner(text, color) {
+          this.banner.setText(text);
+          this.banner.setColor(color);
+          this.banner.setAlpha(1);
+          this.banner.setScale(0.92);
+          this.tweens.killTweensOf(this.banner);
+          this.tweens.add({
+            targets: this.banner,
+            alpha: 0,
+            scale: 1.08,
+            y: 90,
+            duration: 920,
+            ease: "Cubic.easeOut",
+            onStart: () => {
+              this.banner.y = 120;
+            }
+          });
+        }
+
+        pulseCombo() {
+          if (this.state.combo < 2) return;
+          this.uiCombo.setText(`${this.state.combo} HIT`);
+          pulseScale(this, this.uiCombo, 1, 1.08, 150);
+          if (this.state.combo >= 3) {
+            this.pulseBanner(`${this.state.combo} れんげき!`, "#ff38d1");
+          }
+        }
+
+        spawnParticle(x, y, color, angle, speed, scale = 1, life = 350) {
+          const p = this.add.image(x, y, "spark").setDepth(40).setTint(color).setScale(scale);
+          p.setBlendMode(Phaser.BlendModes.ADD);
+          addGlow(p, color, 8, 0, 10);
+          this.tweens.add({
+            targets: p,
+            x: x + Math.cos(angle) * speed,
+            y: y + Math.sin(angle) * speed,
+            alpha: 0,
+            scaleX: 0.1,
+            scaleY: 0.1,
+            duration: life,
+            ease: "Cubic.easeOut",
+            onComplete: () => p.destroy()
+          });
+        }
+
+        spawnBurst(x, y, palette, count, speed) {
+          for (let i = 0; i < count; i += 1) {
+            const angle = (Math.PI * 2 * i) / count + Math.random() * 0.4;
+            this.spawnParticle(
+              x + Phaser.Math.Between(-10, 10),
+              y + Phaser.Math.Between(-12, 12),
+              palette[i % palette.length],
+              angle,
+              24 + Math.random() * speed,
+              0.5 + Math.random() * 1.6,
+              280 + Math.random() * 220
+            );
+          }
+        }
+
+        spawnExplosion(x, y) {
+          this.spawnBurst(x, y, [COLORS.magenta, COLORS.cyan, COLORS.lime, 0xffffff], 28, 230);
+          const wave = this.add.circle(x, y, 20, 0xffffff, 0.18).setDepth(35);
+          wave.setStrokeStyle(3, COLORS.cyan, 0.8);
+          addGlow(wave, COLORS.cyan, 14, 0, 18);
+          this.tweens.add({
+            targets: wave,
+            scale: 4.2,
+            alpha: 0,
+            duration: 420,
+            ease: "Quad.easeOut",
+            onComplete: () => wave.destroy()
+          });
+        }
+
+        spawnSlashWave(x, y, color, scale = 1) {
+          const slash = this.add.image(x, y, "slash").setDepth(32).setTint(color).setScale(scale);
+          slash.setBlendMode(Phaser.BlendModes.ADD);
+          slash.rotation = Phaser.Math.FloatBetween(-0.4, 0.4);
+          addGlow(slash, color, 14, 0, 20);
+          this.tweens.add({
+            targets: slash,
+            alpha: 0,
+            scale: scale * 1.4,
+            duration: 240,
+            ease: "Cubic.easeOut",
+            onComplete: () => slash.destroy()
+          });
+        }
+
+        performAttack() {
+          if (this.time.now < this.state.attackReadyAt || this.state.dead || this.state.cleared) return;
+          this.state.attackReadyAt = this.time.now + 250;
+          this.state.attackActiveUntil = this.time.now + 110;
+          const facing = this.player.flipX ? -1 : 1;
+          const slashX = this.player.x + facing * 48;
+          const slash = this.add.image(slashX, this.player.y - 10, "slash")
+            .setDepth(31)
+            .setTint(facing > 0 ? COLORS.cyan : COLORS.magenta)
+            .setScale(facing > 0 ? 1 : -1, 1);
+          slash.setBlendMode(Phaser.BlendModes.ADD);
+          addGlow(slash, COLORS.cyan, 18, 0, 20);
+          this.tweens.add({
+            targets: slash,
+            alpha: 0,
+            x: slashX + facing * 34,
+            scaleX: facing > 0 ? 1.18 : -1.18,
+            scaleY: 1.14,
+            duration: 180,
+            ease: "Quad.easeOut",
+            onComplete: () => slash.destroy()
+          });
+
+          this.attackZone.body.enable = true;
+          this.attackZone.setPosition(this.player.x + facing * 64, this.player.y - 6);
+          this.attackZone.body.setSize(110, 66);
+          audio.playAttack();
+          this.spawnBurst(this.player.x + facing * 34, this.player.y - 12, [COLORS.cyan, COLORS.magenta], 12, 120);
+        }
+
+        performDash() {
+          if (this.time.now < this.state.dashReadyAt || this.state.dead || this.state.cleared) return;
+          const facing = this.player.flipX ? -1 : 1;
+          this.state.dashReadyAt = this.time.now + 820;
+          this.state.dashEndAt = this.time.now + 180;
+          this.player.body.allowGravity = false;
+          this.player.setVelocity(facing * 760, 0);
+          this.flash("#58f6ff", 0.12, 160);
+          this.spawnSlashWave(this.player.x, this.player.y, COLORS.cyan, 1.5);
+          this.spawnBurst(this.player.x, this.player.y, [COLORS.cyan, COLORS.violet], 18, 200);
+          audio.playDash();
+          this.cameras.main.shake(140, 0.006);
+        }
+
+        updatePlayer() {
+          if (!this.player.body.enable) return;
+          const now = this.time.now;
+          const left = this.keys.left.isDown || this.keys.leftAlt.isDown || touchState.left;
+          const right = this.keys.right.isDown || this.keys.rightAlt.isDown || touchState.right;
+          const jumpPressed =
+            Phaser.Input.Keyboard.JustDown(this.keys.jump) ||
+            Phaser.Input.Keyboard.JustDown(this.keys.jumpAlt) ||
+            consumeTouchEdge("justJump");
+          const dashPressed =
+            Phaser.Input.Keyboard.JustDown(this.keys.dash) ||
+            consumeTouchEdge("justDash");
+          const attackPressed =
+            Phaser.Input.Keyboard.JustDown(this.keys.attackA) ||
+            Phaser.Input.Keyboard.JustDown(this.keys.attackB) ||
+            consumeTouchEdge("justAttack");
+
+          const grounded = this.player.body.blocked.down || this.player.body.touching.down;
+          if (grounded && !this.state.wasGrounded) {
+            this.state.jumpsRemaining = 2;
+            this.spawnBurst(this.player.x, this.player.y + 42, [COLORS.cyan, COLORS.violet], 8, 70);
+          }
+          this.state.wasGrounded = grounded;
+
+          if (jumpPressed && this.state.jumpsRemaining > 0) {
+            this.player.setVelocityY(-510);
+            this.state.jumpsRemaining -= 1;
+            audio.playJump();
+            this.spawnBurst(this.player.x, this.player.y + 10, [COLORS.cyan, COLORS.magenta], 14, 110);
+            this.spawnSlashWave(this.player.x, this.player.y + 12, COLORS.cyan, 0.75);
+          }
+
+          if (dashPressed) {
+            this.performDash();
+          }
+
+          if (attackPressed) {
+            this.performAttack();
+          }
+
+          if (now > this.state.attackActiveUntil) {
+            this.attackZone.body.enable = false;
+          }
+
+          if (now > this.state.dashEndAt && !this.player.body.allowGravity) {
+            this.player.body.allowGravity = true;
+          }
+
+          if (now > this.state.dashEndAt) {
+            let targetSpeed = 0;
+            if (left) targetSpeed = -280;
+            if (right) targetSpeed = 280;
+            this.player.setVelocityX(Phaser.Math.Linear(this.player.body.velocity.x, targetSpeed, grounded ? 0.24 : 0.12));
+          } else if (now - this.state.lastTrailAt > 24) {
+            this.state.lastTrailAt = now;
+            const ghost = this.add.image(this.player.x, this.player.y, "player")
+              .setDepth(19)
+              .setScale(this.player.scaleX, this.player.scaleY)
+              .setAlpha(0.3);
+            ghost.setTint(COLORS.cyan);
+            ghost.flipX = this.player.flipX;
+            ghost.setBlendMode(Phaser.BlendModes.ADD);
+            this.tweens.add({
+              targets: ghost,
+              alpha: 0,
+              scaleX: ghost.scaleX * 1.1,
+              scaleY: ghost.scaleY * 1.1,
+              duration: 180,
+              onComplete: () => ghost.destroy()
+            });
+          }
+
+          if (left && !right) {
+            this.player.flipX = true;
+          } else if (right && !left) {
+            this.player.flipX = false;
+          }
+
+          this.player.rotation = Phaser.Math.Clamp(this.player.body.velocity.x * 0.0008, -0.12, 0.12);
+          this.player.alpha = this.time.now < this.state.invulnerableUntil ? (Math.sin(this.time.now * 0.04) > 0 ? 0.45 : 1) : 1;
+
+          if (this.player.y > 980) {
+            this.takeDamage("fall");
+          }
+        }
+
+        updateEnemies(time) {
+          this.enemies.children.iterate((enemy) => {
+            if (!enemy || !enemy.active) return;
+            const type = enemy.getData("type");
+            if (type === "drone") {
+              const dir = enemy.getData("dir");
+              const originX = enemy.getData("originX");
+              const range = enemy.getData("range");
+              let nextX = enemy.x + dir * 1.7;
+              if (nextX > originX + range || nextX < originX - range) {
+                enemy.setData("dir", dir * -1);
+                nextX = Phaser.Math.Clamp(nextX, originX - range, originX + range);
+              }
+              enemy.x = nextX;
+              enemy.y = enemy.getData("baseY") + Math.sin(time * 0.004 + enemy.getData("phase")) * 26;
+              enemy.flipX = enemy.getData("dir") < 0;
+            } else {
+              const dir = enemy.getData("dir");
+              const originX = enemy.getData("originX");
+              const range = enemy.getData("range");
+              enemy.setVelocityX(66 * dir);
+              if (enemy.x > originX + range) {
+                enemy.setData("dir", -1);
+              } else if (enemy.x < originX - range) {
+                enemy.setData("dir", 1);
+              }
+              enemy.flipX = enemy.getData("dir") < 0;
+            }
+          });
+        }
+
+        updateBackdrop() {
+          const scroll = this.cameras.main.scrollX;
+          this.farCity.tilePositionX = scroll * 0.14;
+          this.midCity.tilePositionX = scroll * 0.24;
+          this.frontCity.tilePositionX = scroll * 0.36;
+          this.bgDrones.forEach((entry, index) => {
+            entry.sprite.x += Math.sin(this.time.now * entry.speed + index) * 0.26;
+            entry.sprite.y = entry.baseY + Math.sin(this.time.now * 0.0012 + index) * 12;
+          });
+        }
+
+        drawRain() {
+          this.rainGraphics.clear();
+          this.rainGraphics.lineStyle(2, 0x9eefff, 0.24);
+          for (const drop of this.rainDrops) {
+            this.rainGraphics.beginPath();
+            this.rainGraphics.moveTo(drop.x, drop.y);
+            this.rainGraphics.lineTo(drop.x - 10, drop.y + drop.len);
+            this.rainGraphics.strokePath();
+            drop.y += drop.speed;
+            drop.x -= drop.speed * 0.32;
+            if (drop.y > GAME_H + 26) {
+              drop.y = -18;
+              drop.x = Math.random() * GAME_W;
+            }
+            if (drop.x < -40) {
+              drop.x = GAME_W + 30;
+            }
+          }
+        }
+
+        drawOverlays() {
+          this.scanlines.clear();
+          this.scanlines.fillStyle(0xffffff, 0.022);
+          for (let y = 0; y < GAME_H; y += 4) {
+            this.scanlines.fillRect(0, y, GAME_W, 1);
+          }
+
+          this.glitchGraphics.clear();
+          this.state.glitch = Math.max(0, this.state.glitch - 0.035);
+          if (this.state.glitch > 0.02 || Math.random() > 0.985) {
+            for (let i = 0; i < 3; i += 1) {
+              const y = Phaser.Math.Between(0, GAME_H - 24);
+              const height = Phaser.Math.Between(8, 26);
+              const alpha = 0.06 + this.state.glitch * 0.18;
+              this.glitchGraphics.fillStyle(i % 2 ? COLORS.magenta : COLORS.cyan, alpha);
+              this.glitchGraphics.fillRect(0, y, GAME_W, height);
+            }
+          }
+        }
+
+        updateUi() {
+          const lifeText = "ライフ " + "◆".repeat(Math.max(0, this.state.lives));
+          this.uiLives.setText(lifeText);
+          this.uiCore.setText(`ネオンコア ${this.state.cores}   スコア ${this.state.score}`);
+          this.uiCombo.setText(this.state.combo > 1 ? `${this.state.combo} HIT` : "");
+          this.uiHint.setText(this.player.x > 5000 ? "さいごの ポータルへ!" : "ネオンシティ を かけぬけろ");
+        }
+
+        update(time) {
+          this.updateBackdrop();
+          this.updateEnemies(time);
+          this.updatePlayer();
+          this.drawRain();
+          this.drawOverlays();
+          this.updateUi();
+        }
+      }
+
+      class EndScene extends Phaser.Scene {
+        constructor() {
+          super("EndScene");
+        }
+
+        init(data) {
+          this.result = data;
+        }
+
+        create() {
+          touchUi.classList.add("show");
+          this.add.tileSprite(GAME_W / 2, GAME_H / 2, GAME_W, GAME_H, "sky-gradient");
+          const ring = this.add.image(GAME_W / 2, 220, "portal").setScale(2.6);
+          ring.setTint(this.result.clear ? COLORS.cyan : COLORS.magenta);
+          addGlow(ring, this.result.clear ? COLORS.cyan : COLORS.magenta, 20, 0, 28);
+          this.tweens.add({
+            targets: ring,
+            angle: 360,
+            duration: 6000,
+            repeat: -1
+          });
+
+          const heading = this.add.text(
+            GAME_W / 2,
+            150,
+            this.result.clear ? "ステージ クリア" : "ゲームオーバー",
+            {
+              fontFamily: '"Zen Kaku Gothic New"',
+              fontSize: "56px",
+              fontStyle: "900",
+              color: this.result.clear ? "#58f6ff" : "#ff38d1"
+            }
+          ).setOrigin(0.5);
+          addGlow(heading, this.result.clear ? COLORS.cyan : COLORS.magenta, 18, 0, 20);
+
+          const title = this.add.text(GAME_W / 2, 245, "NEON PHANTOM BLADE", {
+            fontFamily: '"Audiowide", sans-serif',
+            fontSize: "34px",
+            color: "#eefbff"
+          }).setOrigin(0.5);
+          addGlow(title, COLORS.violet, 12, 0, 14);
+
+          const panel = this.add.rectangle(GAME_W / 2, 490, 620, 300, 0x050915, 0.72);
+          panel.setStrokeStyle(2, this.result.clear ? COLORS.cyan : COLORS.magenta, 0.72);
+          addGlow(panel, COLORS.violet, 8, 0, 12);
+
+          const stats = [
+            `スコア: ${this.result.score ?? 0}`,
+            `ネオンコア: ${this.result.cores ?? 0}`,
+            `さいだいコンボ: ${this.result.maxCombo ?? 0}`,
+            this.result.clear ? "シティ の さいごまで とうたつ!" : `だおれた りゆう: ${this.result.reason || "enemy"}`
+          ].join("\n");
+
+          this.add.text(GAME_W / 2, 460, stats, {
+            fontFamily: '"Zen Kaku Gothic New"',
+            fontSize: "28px",
+            fontStyle: "700",
+            align: "center",
+            lineSpacing: 12,
+            color: "#edf7ff"
+          }).setOrigin(0.5);
+
+          const retry = this.add.text(GAME_W / 2, 620, "クリック / タップ で リトライ", {
+            fontFamily: '"Zen Kaku Gothic New"',
+            fontSize: "30px",
+            fontStyle: "900",
+            color: "#9cff4d"
+          }).setOrigin(0.5);
+          addGlow(retry, COLORS.lime, 14, 0, 16);
+          pulseScale(this, retry, 1, 1.05, 620);
+
+          this.add.text(GAME_W / 2, 670, "T キー で タイトルにもどる", {
+            fontFamily: '"Zen Kaku Gothic New"',
+            fontSize: "20px",
+            color: "#b8d7ff"
+          }).setOrigin(0.5);
+
+          this.input.once("pointerdown", () => {
+            this.scene.start("GameScene");
+          });
+          this.input.keyboard.once("keydown-SPACE", () => this.scene.start("GameScene"));
+          this.input.keyboard.once("keydown-ENTER", () => this.scene.start("GameScene"));
+          this.input.keyboard.once("keydown-T", () => this.scene.start("TitleScene"));
+        }
+      }
+
+      window.addEventListener("pointerdown", () => {
+        audio.unlock();
+      }, { once: false });
+
+      const game = new Phaser.Game({
+        type: Phaser.WEBGL,
+        width: GAME_W,
+        height: GAME_H,
+        parent: "game-shell",
+        backgroundColor: "#040610",
+        scale: {
+          mode: Phaser.Scale.FIT,
+          autoCenter: Phaser.Scale.CENTER_BOTH
+        },
+        physics: {
+          default: "arcade",
+          arcade: {
+            gravity: { y: 1180 },
+            debug: false
+          }
+        },
+        render: {
+          antialias: true,
+          pixelArt: false,
+          powerPreference: "high-performance"
+        },
+        scene: [TitleScene, GameScene, EndScene]
+      });
+
+      void game;
+    })();
+  </script>
+</body>
+</html>
