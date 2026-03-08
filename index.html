@@ -201,6 +201,11 @@
         inset 0 0 24px rgba(255, 56, 209, 0.26);
     }
 
+    .touch-btn.cooldown {
+      opacity: 0.48;
+      filter: saturate(0.7);
+    }
+
     .touch-btn.small {
       width: 72px;
       height: 72px;
@@ -334,6 +339,9 @@
       const bootNote = document.getElementById("boot-note");
       const rotateTip = document.getElementById("rotate-tip");
       const fullscreenBtn = document.getElementById("fullscreen-btn");
+      const jumpButton = document.getElementById("btn-jump");
+      const dashButton = document.getElementById("btn-dash");
+      const attackButton = document.getElementById("btn-attack");
 
       function resetTouchState() {
         touchState.left = false;
@@ -350,6 +358,17 @@
         if (!rotateTip) return;
         const showRotate = IS_COARSE_POINTER && IS_PORTRAIT();
         rotateTip.classList.toggle("show", showRotate);
+      }
+
+      function vibrate(pattern) {
+        if (IS_COARSE_POINTER && typeof navigator !== "undefined" && navigator.vibrate) {
+          navigator.vibrate(pattern);
+        }
+      }
+
+      function setButtonCooldown(button, cooling) {
+        if (!button) return;
+        button.classList.toggle("cooldown", cooling);
       }
 
       function bindTouchButton(id, key, edgeKey) {
@@ -994,6 +1013,8 @@
             dashEndAt: 0,
             attackReadyAt: 0,
             attackActiveUntil: 0,
+            jumpBufferUntil: 0,
+            coyoteUntil: 0,
             invulnerableUntil: 0,
             glitch: 0,
             dead: false,
@@ -1469,6 +1490,7 @@
             this.state.cores += 1;
             this.state.score += 100;
             audio.playPickup();
+            vibrate(10);
             this.spawnBurst(core.x, core.y, [COLORS.cyan, COLORS.lime, COLORS.magenta], 12, 140);
             this.showFloatingText(core.x, core.y - 12, "+100", "#9cff4d", 20);
             this.pulseBanner("ネオンコア +1", "#9cff4d");
@@ -1618,6 +1640,7 @@
           this.state.enemyRewardChain = 0;
           this.state.invulnerableUntil = this.time.now + 1500;
           audio.playHurt();
+          vibrate([28, 36, 28]);
           this.flash("#ff3860", 0.28, 240);
           this.cameras.main.shake(240, 0.01);
           this.spawnExplosion(this.player.x, this.player.y);
@@ -1731,6 +1754,29 @@
           }
         }
 
+        syncTouchButtons(now) {
+          if (!this.isMobile) return;
+          setButtonCooldown(dashButton, now < this.state.dashReadyAt);
+          setButtonCooldown(attackButton, now < this.state.attackReadyAt);
+        }
+
+        autoFaceNearestThreat() {
+          if (!this.isMobile) return;
+          let closest = null;
+          let bestDist = 180;
+          this.enemies.children.iterate((enemy) => {
+            if (!enemy || !enemy.active) return;
+            const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, enemy.x, enemy.y);
+            if (dist < bestDist) {
+              bestDist = dist;
+              closest = enemy;
+            }
+          });
+          if (closest) {
+            this.player.flipX = closest.x < this.player.x;
+          }
+        }
+
         getAttackDamage() {
           return this.state.bladeLevel >= 3 ? 3 : (this.state.bladeLevel >= 2 ? 2 : 1);
         }
@@ -1758,6 +1804,7 @@
           this.state.bossAwakened = true;
           this.finalBoss.enableBody(false, 5300, 684, true, true);
           this.finalBoss.setTint(COLORS.magenta);
+          vibrate([24, 24, 40]);
           if (this.portalMarker) {
             this.portalMarker.setText("ボスを たおせ");
             this.portalMarker.setColor("#ff7adf");
@@ -1881,6 +1928,7 @@
           this.attackZone.setPosition(this.player.x + facing * 64, this.player.y - 6);
           this.attackZone.body.setSize(this.state.bladeLevel >= 2 ? 132 : 110, this.state.bladeLevel >= 2 ? 74 : 66);
           audio.playAttack();
+          vibrate(14);
           this.spawnBurst(this.player.x + facing * 34, this.player.y - 12, this.state.bladeLevel >= 3 ? [COLORS.lime, COLORS.cyan, COLORS.magenta] : [COLORS.cyan, COLORS.magenta], this.state.bladeLevel >= 2 ? 18 : 12, 120);
         }
 
@@ -1895,6 +1943,7 @@
           this.spawnSlashWave(this.player.x, this.player.y, COLORS.cyan, 1.5);
           this.spawnBurst(this.player.x, this.player.y, [COLORS.cyan, COLORS.violet], 18, 200);
           audio.playDash();
+          vibrate([10, 18, 20]);
           this.cameras.main.shake(140, 0.006);
         }
 
@@ -1916,16 +1965,31 @@
             consumeTouchEdge("justAttack");
 
           const grounded = this.player.body.blocked.down || this.player.body.touching.down;
+          if (grounded) {
+            this.state.coyoteUntil = now + 110;
+          }
           if (grounded && !this.state.wasGrounded) {
             this.state.jumpsRemaining = 2;
             this.spawnBurst(this.player.x, this.player.y + 42, [COLORS.cyan, COLORS.violet], 8, 70);
           }
           this.state.wasGrounded = grounded;
 
-          if (jumpPressed && this.state.jumpsRemaining > 0) {
+          if (jumpPressed) {
+            this.state.jumpBufferUntil = now + 140;
+          }
+
+          const canGroundJump = grounded || now <= this.state.coyoteUntil;
+          if (this.state.jumpBufferUntil > now && (canGroundJump || this.state.jumpsRemaining > 0)) {
             this.player.setVelocityY(-535);
-            this.state.jumpsRemaining -= 1;
+            if (canGroundJump && this.state.jumpsRemaining === 2) {
+              this.state.jumpsRemaining = 1;
+            } else {
+              this.state.jumpsRemaining = Math.max(0, this.state.jumpsRemaining - 1);
+            }
+            this.state.jumpBufferUntil = 0;
+            this.state.coyoteUntil = 0;
             audio.playJump();
+            vibrate(12);
             this.spawnBurst(this.player.x, this.player.y + 10, [COLORS.cyan, COLORS.magenta], 14, 110);
             this.spawnSlashWave(this.player.x, this.player.y + 12, COLORS.cyan, 0.75);
           }
@@ -1935,6 +1999,7 @@
           }
 
           if (attackPressed) {
+            this.autoFaceNearestThreat();
             this.performAttack();
           }
 
@@ -2134,6 +2199,7 @@
         update(time) {
           this.updateBackdrop();
           this.updateEnemies(time);
+          this.syncTouchButtons(this.time.now);
           this.updatePlayer();
           this.updateWorldMarkers();
           this.drawRain();
